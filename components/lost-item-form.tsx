@@ -1,11 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
-import * as tf from '@tensorflow/tfjs';
-import * as mobilenet from '@tensorflow-models/mobilenet';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import * as mobilenet from "@tensorflow-models/mobilenet";
+import * as tf from "@tensorflow/tfjs";
+import { Image as ExpoImage } from "expo-image";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ThemedText } from "./themed-text";
+import { ThemedView } from "./themed-view";
 
 interface PredictionResult {
   className: string;
@@ -18,19 +27,20 @@ export function LostItemForm() {
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
-  const [time, setTime] = useState('');
-  const [location, setLocation] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [submitMessage, setSubmitMessage] = useState('');
-  const [objectHint, setObjectHint] = useState('請上傳圖片後，自動填入分類類別。');
+  const [time, setTime] = useState("");
+  const [location, setLocation] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [objectHint, setObjectHint] =
+    useState("請上傳圖片後，自動填入分類類別。");
   const modelRef = useRef<mobilenet.MobileNet | null>(null);
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === "dark";
 
   useEffect(() => {
     const prepareModel = async () => {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== "web") {
         setModelSupported(false);
         return;
       }
@@ -43,7 +53,7 @@ export function LostItemForm() {
         modelRef.current = model;
         setModelLoaded(true);
       } catch (error) {
-        console.error('TensorFlow.js load failed', error);
+        console.error("TensorFlow.js load failed", error);
       } finally {
         setLoading(false);
       }
@@ -59,27 +69,24 @@ export function LostItemForm() {
   }, []);
 
   const normalizeClassName = (className: string) => {
-    return className
-      .split(',')[0]
-      .replace(/_/g, ' ')
-      .trim();
+    return className.split(",")[0].replace(/_/g, " ").trim();
   };
 
   const getCategoryDescription = (className: string) => {
     const key = className.toLowerCase();
     const descriptions: Record<string, string> = {
-      dog: '這看起來像一隻狗，適合填入「寵物/動物」類別。',
-      cat: '這看起來像一隻貓，建議歸類為「寵物/動物」。',
-      person: '這是一名人，請檢查是否為身分證件或人物照片。',
-      car: '這是一輛車，建議歸類為「交通工具」。',
-      truck: '這是一輛卡車，適合歸入「交通工具」。',
-      boat: '這是一艘船，建議歸類為「交通工具」。',
-      bicycle: '這是一部腳踏車，適合分類為「交通工具」。',
-      airplane: '這是一架飛機，可歸為「交通工具」。',
-      banana: '這是一根香蕉，適合歸類為「食品/日用品」。',
-      pizza: '這是一份披薩，建議歸類為「食品」。',
-      apple: '這是一個蘋果，適合歸類為「食品」。',
-      cup: '這是一個杯子，建議分類為「日用品」。',
+      dog: "這看起來像一隻狗，適合填入「寵物/動物」類別。",
+      cat: "這看起來像一隻貓，建議歸類為「寵物/動物」。",
+      person: "這是一名人，請檢查是否為身分證件或人物照片。",
+      car: "這是一輛車，建議歸類為「交通工具」。",
+      truck: "這是一輛卡車，適合歸入「交通工具」。",
+      boat: "這是一艘船，建議歸類為「交通工具」。",
+      bicycle: "這是一部腳踏車，適合分類為「交通工具」。",
+      airplane: "這是一架飛機，可歸為「交通工具」。",
+      banana: "這是一根香蕉，適合歸類為「食品/日用品」。",
+      pizza: "這是一份披薩，建議歸類為「食品」。",
+      apple: "這是一個蘋果，適合歸類為「食品」。",
+      cup: "這是一個杯子，建議分類為「日用品」。",
     };
 
     for (const [match, descriptionText] of Object.entries(descriptions)) {
@@ -98,10 +105,10 @@ export function LostItemForm() {
 
     setLoading(true);
     setPredictions([]);
-    setSubmitMessage('');
+    setSubmitMessage("");
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     img.onload = async () => {
       try {
         const results = await modelRef.current!.classify(img);
@@ -119,8 +126,8 @@ export function LostItemForm() {
           setObjectHint(getCategoryDescription(top.className));
         }
       } catch (error) {
-        console.error('Classification error', error);
-        setObjectHint('分類失敗，請嘗試重新上傳圖片。');
+        console.error("Classification error", error);
+        setObjectHint("分類失敗，請嘗試重新上傳圖片。");
       } finally {
         setLoading(false);
       }
@@ -128,7 +135,7 @@ export function LostItemForm() {
 
     img.onerror = () => {
       setLoading(false);
-      setObjectHint('圖片載入失敗，請確認檔案格式。');
+      setObjectHint("圖片載入失敗，請確認檔案格式。");
     };
 
     img.src = uri;
@@ -143,7 +150,7 @@ export function LostItemForm() {
     const reader = new FileReader();
     reader.onload = (loadEvent) => {
       const result = loadEvent.target?.result;
-      if (typeof result === 'string') {
+      if (typeof result === "string") {
         setImageUri(result);
         classifyImage(result);
       }
@@ -152,14 +159,25 @@ export function LostItemForm() {
   };
 
   const handleSubmit = () => {
-    setSubmitMessage(`已建立失物資料：時間 ${time || '未填'}, 地點 ${location || '未填'}, 類別 ${category || '未填'}。`);
+    setSubmitMessage(
+      `已建立失物資料：時間 ${time || "未填"}, 地點 ${location || "未填"}, 類別 ${category || "未填"}。`,
+    );
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: isDark ? '#05121F' : '#F7FBFF' }]}> 
+    <ThemedView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#05121F" : "#F7FBFF" },
+      ]}
+    >
       <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText type="title" style={styles.header}>失物建立表單</ThemedText>
-        <ThemedText style={styles.subheader}>請填寫遺失時間、地點，並上傳物品圖片以便自動辨識類別。</ThemedText>
+        <ThemedText type="title" style={styles.header}>
+          失物建立表單
+        </ThemedText>
+        <ThemedText style={styles.subheader}>
+          請填寫遺失時間、地點，並上傳物品圖片以便自動辨識類別。
+        </ThemedText>
 
         <View style={styles.formGroup}>
           <ThemedText style={styles.label}>遺失時間</ThemedText>
@@ -210,10 +228,12 @@ export function LostItemForm() {
 
         <View style={styles.uploadSection}>
           <ThemedText style={styles.label}>上傳物品圖片</ThemedText>
-          {Platform.OS === 'web' ? (
+          {Platform.OS === "web" ? (
             <View style={styles.fileUploadWrapper}>
               <label style={styles.fileUploadLabel}>
-                <Text style={styles.fileUploadText}>{modelLoaded ? '點此選擇圖片' : '模型載入中，請稍候...'}</Text>
+                <Text style={styles.fileUploadText}>
+                  {modelLoaded ? "點此選擇圖片" : "模型載入中，請稍候..."}
+                </Text>
                 <input
                   type="file"
                   accept="image/*"
@@ -225,25 +245,35 @@ export function LostItemForm() {
               {loading && <ActivityIndicator size="small" color="#007AFF" />}
             </View>
           ) : (
-            <ThemedText style={styles.warningText}>僅 Web 環境支援 TensorFlow.js 圖片上傳辨識。</ThemedText>
+            <ThemedText style={styles.warningText}>
+              僅 Web 環境支援 TensorFlow.js 圖片上傳辨識。
+            </ThemedText>
           )}
         </View>
 
         {imageUri ? (
           <View style={styles.previewContainer}>
-            <ExpoImage source={{ uri: imageUri }} style={styles.previewImage} contentFit="contain" />
+            <ExpoImage
+              source={{ uri: imageUri }}
+              style={styles.previewImage}
+              contentFit="contain"
+            />
           </View>
         ) : null}
 
         {predictions.length > 0 ? (
           <View style={styles.predictionPanel}>
-            <ThemedText type="subtitle" style={styles.predictionTitle}>模型辨識結果</ThemedText>
+            <ThemedText type="subtitle" style={styles.predictionTitle}>
+              模型辨識結果
+            </ThemedText>
             {predictions.map((item, index) => (
               <View key={index} style={styles.predictionItem}>
                 <ThemedText style={styles.predictionText}>
                   {index + 1}. {normalizeClassName(item.className)}
                 </ThemedText>
-                <ThemedText style={styles.probabilityText}>{item.probability}%</ThemedText>
+                <ThemedText style={styles.probabilityText}>
+                  {item.probability}%
+                </ThemedText>
               </View>
             ))}
           </View>
@@ -253,7 +283,9 @@ export function LostItemForm() {
           <Text style={styles.submitButtonText}>建立失物資料</Text>
         </TouchableOpacity>
 
-        {submitMessage ? <ThemedText style={styles.submitMessage}>{submitMessage}</ThemedText> : null}
+        {submitMessage ? (
+          <ThemedText style={styles.submitMessage}>{submitMessage}</ThemedText>
+        ) : null}
       </ScrollView>
     </ThemedView>
   );
@@ -269,47 +301,47 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 4,
   },
   subheader: {
     fontSize: 15,
     lineHeight: 24,
-    color: '#3C4A63',
+    color: "#3C4A63",
   },
   formGroup: {
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1F3349',
+    fontWeight: "600",
+    color: "#1F3349",
   },
   hint: {
     marginTop: 4,
     fontSize: 13,
-    color: '#5A6B8A',
+    color: "#5A6B8A",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D6DFEA',
+    borderColor: "#D6DFEA",
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
+    backgroundColor: "#FFFFFF",
+    color: "#111827",
     fontSize: 15,
   },
   textArea: {
     minHeight: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   uploadSection: {
     marginBottom: 14,
   },
   fileUploadWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   fileUploadSpacer: {
     width: 12,
@@ -318,70 +350,70 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
-    backgroundColor: '#0A84FF',
-    alignSelf: 'flex-start',
+    backgroundColor: "#0A84FF",
+    alignSelf: "flex-start",
   },
   fileUploadText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   fileUploadInput: {
-    display: 'none',
+    display: "none",
   },
   warningText: {
     fontSize: 13,
-    color: '#8B95A3',
+    color: "#8B95A3",
   },
   previewContainer: {
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#E4E9F2',
+    borderColor: "#E4E9F2",
   },
   previewImage: {
-    width: '100%',
+    width: "100%",
     maxHeight: 360,
   },
   predictionPanel: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E4E9F2',
+    borderColor: "#E4E9F2",
   },
   predictionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 8,
   },
   predictionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   predictionText: {
     fontSize: 15,
-    color: '#152845',
+    color: "#152845",
   },
   probabilityText: {
     fontSize: 14,
-    color: '#4C5A74',
+    color: "#4C5A74",
   },
   submitButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingVertical: 14,
     borderRadius: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   submitMessage: {
     marginTop: 12,
     fontSize: 14,
-    color: '#1B4F72',
+    color: "#1B4F72",
   },
 });
