@@ -2,9 +2,11 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import * as mobilenet from "@tensorflow-models/mobilenet";
 import * as tf from "@tensorflow/tfjs";
 import { Image as ExpoImage } from "expo-image";
+import * as Location from "expo-location";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,6 +23,12 @@ interface PredictionResult {
   probability: number;
 }
 
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  address?: string;
+}
+
 export function LostItemForm() {
   const [modelLoaded, setModelLoaded] = useState(false);
   const [modelSupported, setModelSupported] = useState(false);
@@ -34,6 +42,9 @@ export function LostItemForm() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [objectHint, setObjectHint] =
     useState("請上傳圖片後，自動填入分類類別。");
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [showLocationOptions, setShowLocationOptions] = useState(false);
   const modelRef = useRef<mobilenet.MobileNet | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -164,6 +175,77 @@ export function LostItemForm() {
     );
   };
 
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      return status === "granted";
+    } catch (error) {
+      console.error("Location permission error:", error);
+      return false;
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        Alert.alert("權限不足", "需要位置權限才能獲取當前位置。");
+        return;
+      }
+
+      const locationResult = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const { latitude, longitude } = locationResult.coords;
+      setLocationData({ latitude, longitude });
+
+      // 嘗試反向地理編碼獲取地址
+      try {
+        const addressResult = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        if (addressResult.length > 0) {
+          const address = addressResult[0];
+          const addressString =
+            `${address.city || ""} ${address.region || ""} ${address.street || ""} ${address.streetNumber || ""}`.trim();
+          setLocation(
+            addressString ||
+              `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+          );
+        } else {
+          setLocation(
+            `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+          );
+        }
+      } catch (error) {
+        console.error("Reverse geocoding error:", error);
+        setLocation(
+          `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+        );
+      }
+
+      setShowLocationOptions(false);
+    } catch (error) {
+      console.error("Get location error:", error);
+      Alert.alert("獲取位置失敗", "請檢查位置權限或網路連接。");
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleLocationInput = (text: string) => {
+    setLocation(text);
+    setLocationData(null); // 清除 GPS 數據，因為用戶手動輸入
+  };
+
+  const openLocationOptions = () => {
+    setShowLocationOptions(!showLocationOptions);
+  };
+
   return (
     <ThemedView
       style={[
@@ -191,14 +273,60 @@ export function LostItemForm() {
         </View>
 
         <View style={styles.formGroup}>
-          <ThemedText style={styles.label}>遺失地點</ThemedText>
+          <View style={styles.locationHeader}>
+            <ThemedText style={styles.label}>遺失地點</ThemedText>
+            <TouchableOpacity
+              style={styles.locationButton}
+              onPress={openLocationOptions}
+            >
+              <Text style={styles.locationButtonText}>
+                {showLocationOptions ? "隱藏選項" : "選擇位置"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TextInput
             style={styles.input}
             placeholder="例如：捷運站出口、百貨公司、一號停車場"
             placeholderTextColor="rgba(88, 100, 122, 0.6)"
             value={location}
-            onChangeText={setLocation}
+            onChangeText={handleLocationInput}
           />
+
+          {showLocationOptions && (
+            <View style={styles.locationOptions}>
+              <TouchableOpacity
+                style={styles.locationOption}
+                onPress={getCurrentLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.locationOptionText}>
+                    📍 使用當前 GPS 位置
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.locationDivider}>
+                <Text style={styles.locationDividerText}>或</Text>
+              </View>
+
+              <ThemedText style={styles.locationManualText}>
+                手動輸入地址或地點名稱
+              </ThemedText>
+            </View>
+          )}
+
+          {locationData && (
+            <View style={styles.locationInfo}>
+              <ThemedText style={styles.locationInfoText}>
+                📌 已選擇位置：緯度 {locationData.latitude.toFixed(6)}, 經度{" "}
+                {locationData.longitude.toFixed(6)}
+              </ThemedText>
+            </View>
+          )}
         </View>
 
         <View style={styles.formGroup}>
@@ -415,5 +543,70 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#1B4F72",
+  },
+  locationHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  locationButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#E3F2FD",
+    borderRadius: 8,
+  },
+  locationButtonText: {
+    fontSize: 12,
+    color: "#1976D2",
+    fontWeight: "600",
+  },
+  locationOptions: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+  locationOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#007AFF",
+  },
+  locationOptionText: {
+    fontSize: 14,
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  locationDivider: {
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  locationDividerText: {
+    fontSize: 12,
+    color: "#6C757D",
+    backgroundColor: "#F8F9FA",
+    paddingHorizontal: 8,
+  },
+  locationManualText: {
+    fontSize: 13,
+    color: "#495057",
+    textAlign: "center",
+  },
+  locationInfo: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: "#E8F5E8",
+    borderRadius: 8,
+  },
+  locationInfoText: {
+    fontSize: 12,
+    color: "#2E7D32",
   },
 });
