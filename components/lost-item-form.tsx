@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,13 @@ interface LocationData {
   address?: string;
 }
 
+interface WebPlaceSuggestion {
+  id: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+}
+
 export function LostItemForm() {
   const [modelLoaded, setModelLoaded] = useState(false);
   const [modelSupported, setModelSupported] = useState(false);
@@ -45,7 +53,17 @@ export function LostItemForm() {
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [showLocationOptions, setShowLocationOptions] = useState(false);
+  const [searchResults, setSearchResults] = useState<WebPlaceSuggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [
+    GooglePlacesAutocompleteComponent,
+    setGooglePlacesAutocompleteComponent,
+  ] = useState<React.ComponentType<any> | null>(null);
   const modelRef = useRef<mobilenet.MobileNet | null>(null);
+  const webSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -73,14 +91,171 @@ export function LostItemForm() {
     prepareModel();
 
     return () => {
-      if (modelRef.current) {
-        modelRef.current.dispose();
+      if (modelRef.current && "dispose" in modelRef.current) {
+        (modelRef.current as any).dispose();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    import("react-native-google-places-autocomplete")
+      .then((mod) => {
+        if (mounted) {
+          setGooglePlacesAutocompleteComponent(
+            () => mod.GooglePlacesAutocomplete,
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Load GooglePlacesAutocomplete failed:", error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // 自動獲取當前位置
+  useEffect(() => {
+    const initializeLocation = async () => {
+      await getCurrentLocation();
+    };
+    initializeLocation();
+
+    return () => {
+      if (webSearchDebounceRef.current) {
+        clearTimeout(webSearchDebounceRef.current);
       }
     };
   }, []);
 
   const normalizeClassName = (className: string) => {
     return className.split(",")[0].replace(/_/g, " ").trim();
+  };
+
+  const generateReadableAddressFromNominatim = (
+    address: any,
+    name: string,
+    latitude: number,
+    longitude: number,
+  ) => {
+    // Nominatim 返回的地址格式
+    const {
+      road,
+      house_number,
+      neighbourhood,
+      suburb,
+      city,
+      county,
+      state,
+      country,
+      postcode,
+    } = address;
+
+    const locationParts = [];
+
+    // 添加街道信息
+    if (road && house_number) {
+      locationParts.push(`${road}${house_number}號`);
+    } else if (road) {
+      locationParts.push(`${road}附近`);
+    } else if (name) {
+      locationParts.push(name);
+    }
+
+    // 添加鄰近地區
+    if (neighbourhood) {
+      locationParts.push(neighbourhood);
+    } else if (suburb) {
+      locationParts.push(suburb);
+    }
+
+    // 添加城市信息
+    if (city) {
+      locationParts.push(city);
+    } else if (county) {
+      locationParts.push(county);
+    }
+
+    // 如果沒有詳細地址，嘗試創建有趣的描述
+    if (locationParts.length === 0) {
+      const latDesc =
+        latitude > 25.0 ? "北部" : latitude > 23.5 ? "中部" : "南部";
+      const lonDesc =
+        longitude > 121.0 ? "東部" : longitude > 120.5 ? "西部" : "中部";
+
+      if (country) {
+        return `📍 ${country}境內 (${latDesc}${lonDesc})`;
+      } else {
+        return `📍 神秘地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      }
+    }
+
+    // 組合地址並添加表情符號
+    const fullAddress = locationParts.join("，");
+    return `${fullAddress}`;
+  };
+
+  const generateReadableAddress = (
+    address: any,
+    latitude: number,
+    longitude: number,
+  ) => {
+    const { city, region, street, streetNumber, district, subregion, country } =
+      address;
+
+    // 創建有趣的地點描述
+    const locationParts = [];
+
+    // 添加街道信息
+    if (street && streetNumber) {
+      locationParts.push(`${street}${streetNumber}號`);
+    } else if (street) {
+      locationParts.push(`${street}附近`);
+    }
+
+    // 添加地區信息
+    if (district) {
+      locationParts.push(district);
+    }
+
+    // 添加城市/地區信息
+    if (city) {
+      locationParts.push(city);
+    } else if (region) {
+      locationParts.push(region);
+    }
+
+    // 如果沒有詳細地址，嘗試創建有趣的描述
+    if (locationParts.length === 0) {
+      // 根據經緯度判斷大概位置
+      const latDesc =
+        latitude > 25.0 ? "北部" : latitude > 23.5 ? "中部" : "南部";
+      const lonDesc =
+        longitude > 121.0 ? "東部" : longitude > 120.5 ? "西部" : "中部";
+
+      if (subregion) {
+        return `📍 ${subregion}地區 (${latDesc}${lonDesc})`;
+      } else if (country) {
+        return `📍 ${country}境內 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      } else {
+        return `📍 神秘地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      }
+    }
+
+    // 組合地址並添加表情符號
+    const fullAddress = locationParts.join("，");
+    const emojis = ["🏠", "🏢", "🏪", "🏬", "🏭", "🏛️", "🏘️", "🏙️", "🌆", "🌃"];
+
+    // 隨機選擇一個表情符號
+    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+    return `${randomEmoji} ${fullAddress}`;
   };
 
   const getCategoryDescription = (className: string) => {
@@ -201,30 +376,42 @@ export function LostItemForm() {
       const { latitude, longitude } = locationResult.coords;
       setLocationData({ latitude, longitude });
 
-      // 嘗試反向地理編碼獲取地址
+      // 使用 Nominatim 服務進行反向地理編碼（替代已廢棄的 Google Geocoding API）
       try {
-        const addressResult = await Location.reverseGeocodeAsync({
-          latitude,
-          longitude,
-        });
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+          {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "FindMyApp/1.0",
+            },
+          },
+        );
 
-        if (addressResult.length > 0) {
-          const address = addressResult[0];
-          const addressString =
-            `${address.city || ""} ${address.region || ""} ${address.street || ""} ${address.streetNumber || ""}`.trim();
-          setLocation(
-            addressString ||
-              `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+        if (!response.ok) {
+          throw new Error("Nominatim API request failed");
+        }
+
+        const data = await response.json();
+        console.log(data, "addressResult from Nominatim");
+
+        if (data && data.address) {
+          const readableAddress = generateReadableAddressFromNominatim(
+            data.address,
+            data.name || "",
+            latitude,
+            longitude,
           );
+          setLocation(readableAddress);
         } else {
           setLocation(
-            `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+            `📍 未知地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
           );
         }
       } catch (error) {
         console.error("Reverse geocoding error:", error);
         setLocation(
-          `緯度: ${latitude.toFixed(6)}, 經度: ${longitude.toFixed(6)}`,
+          `📍 位置座標 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
         );
       }
 
@@ -240,6 +427,87 @@ export function LostItemForm() {
   const handleLocationInput = (text: string) => {
     setLocation(text);
     setLocationData(null); // 清除 GPS 數據，因為用戶手動輸入
+    if (Platform.OS !== "web") {
+      return;
+    }
+
+    if (webSearchDebounceRef.current) {
+      clearTimeout(webSearchDebounceRef.current);
+    }
+
+    const trimmedText = text.trim();
+    if (trimmedText.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+    webSearchDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(trimmedText)}`,
+          {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "FindMyApp/1.0",
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Autocomplete request failed");
+        }
+
+        const data = await response.json();
+        const suggestions: WebPlaceSuggestion[] = Array.isArray(data)
+          ? data.map((item: any, index: number) => ({
+              id: `${item.place_id ?? index}`,
+              description: item.display_name ?? "未知地點",
+              latitude: Number(item.lat),
+              longitude: Number(item.lon),
+            }))
+          : [];
+
+        setSearchResults(suggestions);
+      } catch (error) {
+        console.error("Web autocomplete error:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  };
+
+  const handleWebSuggestionSelect = (item: WebPlaceSuggestion) => {
+    setLocation(item.description);
+    setLocationData({
+      latitude: item.latitude,
+      longitude: item.longitude,
+    });
+    setShowSearchResults(false);
+    setSearchResults([]);
+  };
+
+  const handlePlacesSelect = (data: any, details: any) => {
+    // 從Google Places Autocomplete獲取選擇的地址
+    const selectedAddress = data.description;
+    const lat = details?.geometry?.location?.lat;
+    const lng = details?.geometry?.location?.lng;
+
+    setLocation(selectedAddress);
+
+    if (lat && lng) {
+      setLocationData({ latitude: lat, longitude: lng });
+    }
+
+    console.log("Selected place:", {
+      address: selectedAddress,
+      latitude: lat,
+      longitude: lng,
+    });
   };
 
   const openLocationOptions = () => {
@@ -273,57 +541,139 @@ export function LostItemForm() {
         </View>
 
         <View style={styles.formGroup}>
-          <View style={styles.locationHeader}>
-            <ThemedText style={styles.label}>遺失地點</ThemedText>
-            <TouchableOpacity
-              style={styles.locationButton}
-              onPress={openLocationOptions}
-            >
-              <Text style={styles.locationButtonText}>
-                {showLocationOptions ? "隱藏選項" : "選擇位置"}
+          <ThemedText style={styles.label}>遺失地點</ThemedText>
+
+          <TouchableOpacity
+            style={styles.useCurrentLocationButton}
+            onPress={getCurrentLocation}
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.useCurrentLocationButtonText}>
+                使用當前位置（GPS）
               </Text>
-            </TouchableOpacity>
-          </View>
+            )}
+          </TouchableOpacity>
 
-          <TextInput
-            style={styles.input}
-            placeholder="例如：捷運站出口、百貨公司、一號停車場"
-            placeholderTextColor="rgba(88, 100, 122, 0.6)"
-            value={location}
-            onChangeText={handleLocationInput}
-          />
-
-          {showLocationOptions && (
-            <View style={styles.locationOptions}>
-              <TouchableOpacity
-                style={styles.locationOption}
-                onPress={getCurrentLocation}
-                disabled={locationLoading}
-              >
-                {locationLoading ? (
+          {/* Web 環境下避免 GooglePlacesAutocomplete 初始化錯誤 */}
+          {Platform.OS === "web" ? (
+            <View style={styles.webSearchContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="輸入地址或地點名稱"
+                placeholderTextColor="rgba(88, 100, 122, 0.6)"
+                value={location}
+                onChangeText={handleLocationInput}
+                onFocus={() => {
+                  if (searchResults.length > 0) {
+                    setShowSearchResults(true);
+                  }
+                }}
+              />
+              {isSearching && (
+                <View style={styles.webSearchLoading}>
                   <ActivityIndicator size="small" color="#007AFF" />
-                ) : (
-                  <Text style={styles.locationOptionText}>
-                    📍 使用當前 GPS 位置
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <View style={styles.locationDivider}>
-                <Text style={styles.locationDividerText}>或</Text>
-              </View>
-
-              <ThemedText style={styles.locationManualText}>
-                手動輸入地址或地點名稱
-              </ThemedText>
+                </View>
+              )}
+              {showSearchResults && searchResults.length > 0 && (
+                <View style={styles.webSearchResults}>
+                  <FlatList
+                    data={searchResults}
+                    keyExtractor={(item) => item.id}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.webSearchResultItem}
+                        onPress={() => handleWebSuggestionSelect(item)}
+                      >
+                        <Text style={styles.webSearchResultText}>
+                          {item.description}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.autocompleteContainer}>
+              {GooglePlacesAutocompleteComponent ? (
+                <GooglePlacesAutocompleteComponent
+                  placeholder="搜尋地址或地點名稱"
+                  onPress={handlePlacesSelect}
+                  fetchDetails
+                  debounce={300}
+                  listViewDisplayed="auto"
+                  keepResultsAfterBlur
+                  enablePoweredByContainer={false}
+                  query={{
+                    key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, // 需要替換為您的API Key
+                    language: "zh-TW",
+                  }}
+                  onFail={(error: any) => {
+                    console.error("Google places autocomplete error:", error);
+                  }}
+                  textInputProps={{
+                    placeholderTextColor: "rgba(88, 100, 122, 0.6)",
+                  }}
+                  styles={{
+                    container: {
+                      flex: 0,
+                      width: "100%",
+                    },
+                    textInputContainer: {
+                      width: "100%",
+                      borderBottomColor: "#c8c7cc",
+                      borderBottomWidth: 1,
+                    },
+                    textInput: {
+                      height: 44,
+                      color: "#5d5d5d",
+                      fontSize: 16,
+                      padding: 10,
+                    },
+                    predefinedPlacesDescription: {
+                      color: "#1faadb",
+                    },
+                    listView: {
+                      position: "absolute",
+                      top: 54,
+                      left: 0,
+                      right: 0,
+                      backgroundColor: "#fff",
+                      zIndex: 1000,
+                      elevation: 10,
+                    },
+                    row: {
+                      paddingHorizontal: 10,
+                      paddingVertical: 12,
+                      borderBottomColor: "#e5e5e5",
+                      borderBottomWidth: 1,
+                    },
+                    description: {
+                      fontSize: 14,
+                      color: "#666",
+                    },
+                    loader: {
+                      flexDirection: "row",
+                      justifyContent: "flex-end",
+                      height: 20,
+                    },
+                  }}
+                />
+              ) : (
+                <ActivityIndicator size="small" color="#007AFF" />
+              )}
             </View>
           )}
 
-          {locationData && (
+          {/* 當前位置信息 */}
+          {location && (
             <View style={styles.locationInfo}>
               <ThemedText style={styles.locationInfoText}>
-                📌 已選擇位置：緯度 {locationData.latitude.toFixed(6)}, 經度{" "}
-                {locationData.longitude.toFixed(6)}
+                已選擇：{location}
               </ThemedText>
             </View>
           )}
@@ -608,5 +958,69 @@ const styles = StyleSheet.create({
   locationInfoText: {
     fontSize: 12,
     color: "#2E7D32",
+  },
+  autocompleteContainer: {
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: "#E4E9F2",
+    borderRadius: 8,
+    overflow: "visible",
+    zIndex: 50,
+  },
+  webSearchContainer: {
+    marginTop: 12,
+  },
+  webSearchLoading: {
+    marginTop: 8,
+    alignItems: "flex-start",
+  },
+  webSearchResults: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#D6DFEA",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    maxHeight: 220,
+    overflow: "hidden",
+  },
+  webSearchResultItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF2F7",
+  },
+  webSearchResultText: {
+    fontSize: 13,
+    color: "#334155",
+  },
+  useCurrentLocationButton: {
+    marginTop: 10,
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  useCurrentLocationButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  refreshLocationButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  refreshLocationButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
   },
 });
