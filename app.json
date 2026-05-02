@@ -32,6 +32,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "需要相簿權限以選擇失物照片並進行辨識。",
+          "cameraPermission": "需要相機權限以拍攝失物照片並進行辨識。"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

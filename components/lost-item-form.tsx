@@ -1,14 +1,29 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import * as mobilenet from "@tensorflow-models/mobilenet";
-import * as tf from "@tensorflow/tfjs";
+import {
+  cosineSimilarity,
+  findEmbeddingDuplicates,
+  topKSimilarRecords,
+} from "@/lib/embedding-similarity";
+import {
+  appendRecord,
+  getEmbeddingDbFileUri,
+  getRecordCount,
+  loadAllRecords,
+  type ImageEmbeddingRecord,
+  type ImageLabelPrediction,
+} from "@/lib/image-embedding-db";
+import {
+  classifyImageFromUri,
+  disposeMobilenet,
+  initMobilenet,
+} from "@/lib/mobilenet-runner";
 import { Image as ExpoImage } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,22 +39,62 @@ interface PredictionResult {
   probability: number;
 }
 
-interface LocationData {
-  latitude: number;
-  longitude: number;
-  address?: string;
+interface DbSimilarHit {
+  recordId: string;
+  createdAt: string;
+  similarity: number;
+  topLabelLine: string;
 }
 
-interface WebPlaceSuggestion {
-  id: string;
-  description: string;
-  latitude: number;
-  longitude: number;
+/** Place Details 回傳的 geometry（location + 選填 viewport）。 */
+interface PlaceGeometry {
+  location: { lat: number; lng: number };
+  viewport?: unknown;
+}
+
+/** 從 `onPress(data, details)` 的 `details`（即 `result`）解析 geometry。 */
+function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
+  if (!details || typeof details !== "object") {
+    return null;
+  }
+  const d = details as { geometry?: unknown };
+  const geometry = d.geometry;
+  if (!geometry || typeof geometry !== "object") {
+    return null;
+  }
+  const g = geometry as {
+    location?: unknown;
+    viewport?: unknown;
+  };
+  if (!g.location || typeof g.location !== "object") {
+    return null;
+  }
+  const loc = g.location as { lat?: unknown; lng?: unknown };
+  const rawLat = loc.lat;
+  const rawLng = loc.lng;
+  const lat =
+    typeof rawLat === "function"
+      ? (rawLat as () => number)()
+      : typeof rawLat === "number"
+        ? rawLat
+        : Number(rawLat);
+  const lng =
+    typeof rawLng === "function"
+      ? (rawLng as () => number)()
+      : typeof rawLng === "number"
+        ? rawLng
+        : Number(rawLng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  return {
+    location: { lat, lng },
+    viewport: g.viewport,
+  };
 }
 
 export function LostItemForm() {
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [modelSupported, setModelSupported] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
@@ -48,41 +103,39 @@ export function LostItemForm() {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [embeddingDbCount, setEmbeddingDbCount] = useState(0);
+  const [lastFeatureDim, setLastFeatureDim] = useState<number | null>(null);
+  const [embeddingDbError, setEmbeddingDbError] = useState<string | null>(null);
+  const [embeddingDbFileUri, setEmbeddingDbFileUri] = useState<string | null>(
+    null,
+  );
+  const [dbSimilarHits, setDbSimilarHits] = useState<DbSimilarHit[]>([]);
+  const [dbSimilarNotice, setDbSimilarNotice] = useState<string | null>(null);
   const [objectHint, setObjectHint] =
     useState("請上傳圖片後，自動填入分類類別。");
-  const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [showLocationOptions, setShowLocationOptions] = useState(false);
-  const [searchResults, setSearchResults] = useState<WebPlaceSuggestion[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [placeGeometry, setPlaceGeometry] = useState<PlaceGeometry | null>(
+    null,
+  );
   const [
     GooglePlacesAutocompleteComponent,
     setGooglePlacesAutocompleteComponent,
   ] = useState<React.ComponentType<any> | null>(null);
-  const modelRef = useRef<mobilenet.MobileNet | null>(null);
-  const webSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
   useEffect(() => {
     const prepareModel = async () => {
-      if (Platform.OS !== "web") {
-        setModelSupported(false);
-        return;
-      }
-
-      setModelSupported(true);
       try {
         setLoading(true);
-        await tf.ready();
-        const model = await mobilenet.load();
-        modelRef.current = model;
-        setModelLoaded(true);
+        const ok = await initMobilenet();
+        setModelLoaded(ok);
+        if (!ok) {
+          console.error("TensorFlow.js / MobileNet 初始化失敗");
+        }
       } catch (error) {
         console.error("TensorFlow.js load failed", error);
+        setModelLoaded(false);
       } finally {
         setLoading(false);
       }
@@ -91,17 +144,24 @@ export function LostItemForm() {
     prepareModel();
 
     return () => {
-      if (modelRef.current && "dispose" in modelRef.current) {
-        (modelRef.current as any).dispose();
-      }
+      disposeMobilenet();
     };
   }, []);
 
   useEffect(() => {
+    getRecordCount()
+      .then((n) => {
+        setEmbeddingDbCount(n);
+        setEmbeddingDbFileUri(getEmbeddingDbFileUri());
+      })
+      .catch(() => {
+        setEmbeddingDbCount(0);
+        setEmbeddingDbFileUri(getEmbeddingDbFileUri());
+      });
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
-    if (Platform.OS === "web") {
-      return;
-    }
 
     import("react-native-google-places-autocomplete")
       .then((mod) => {
@@ -126,12 +186,6 @@ export function LostItemForm() {
       await getCurrentLocation();
     };
     initializeLocation();
-
-    return () => {
-      if (webSearchDebounceRef.current) {
-        clearTimeout(webSearchDebounceRef.current);
-      }
-    };
   }, []);
 
   const normalizeClassName = (className: string) => {
@@ -152,9 +206,7 @@ export function LostItemForm() {
       suburb,
       city,
       county,
-      state,
       country,
-      postcode,
     } = address;
 
     const locationParts = [];
@@ -201,63 +253,6 @@ export function LostItemForm() {
     return `${fullAddress}`;
   };
 
-  const generateReadableAddress = (
-    address: any,
-    latitude: number,
-    longitude: number,
-  ) => {
-    const { city, region, street, streetNumber, district, subregion, country } =
-      address;
-
-    // 創建有趣的地點描述
-    const locationParts = [];
-
-    // 添加街道信息
-    if (street && streetNumber) {
-      locationParts.push(`${street}${streetNumber}號`);
-    } else if (street) {
-      locationParts.push(`${street}附近`);
-    }
-
-    // 添加地區信息
-    if (district) {
-      locationParts.push(district);
-    }
-
-    // 添加城市/地區信息
-    if (city) {
-      locationParts.push(city);
-    } else if (region) {
-      locationParts.push(region);
-    }
-
-    // 如果沒有詳細地址，嘗試創建有趣的描述
-    if (locationParts.length === 0) {
-      // 根據經緯度判斷大概位置
-      const latDesc =
-        latitude > 25.0 ? "北部" : latitude > 23.5 ? "中部" : "南部";
-      const lonDesc =
-        longitude > 121.0 ? "東部" : longitude > 120.5 ? "西部" : "中部";
-
-      if (subregion) {
-        return `📍 ${subregion}地區 (${latDesc}${lonDesc})`;
-      } else if (country) {
-        return `📍 ${country}境內 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-      } else {
-        return `📍 神秘地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-      }
-    }
-
-    // 組合地址並添加表情符號
-    const fullAddress = locationParts.join("，");
-    const emojis = ["🏠", "🏢", "🏪", "🏬", "🏭", "🏛️", "🏘️", "🏙️", "🌆", "🌃"];
-
-    // 隨機選擇一個表情符號
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-
-    return `${randomEmoji} ${fullAddress}`;
-  };
-
   const getCategoryDescription = (className: string) => {
     const key = className.toLowerCase();
     const descriptions: Record<string, string> = {
@@ -284,64 +279,176 @@ export function LostItemForm() {
     return `模型辨識為「${normalizeClassName(className)}」，請確認是否填入此類別。`;
   };
 
+  const recordToSimilarHit = (
+    record: ImageEmbeddingRecord,
+    similarity: number,
+  ): DbSimilarHit => {
+    const top = record.labelPredictions[0];
+    const labelLine = top
+      ? `${normalizeClassName(top.className)}（${top.probability}%）`
+      : "—";
+    return {
+      recordId: record.id,
+      createdAt: record.createdAt,
+      similarity,
+      topLabelLine: labelLine,
+    };
+  };
+
   const classifyImage = async (uri: string) => {
-    if (!modelRef.current || !modelSupported) {
+    if (!modelLoaded) {
       return;
     }
 
     setLoading(true);
     setPredictions([]);
     setSubmitMessage("");
+    setEmbeddingDbError(null);
+    setDbSimilarHits([]);
+    setDbSimilarNotice(null);
 
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = async () => {
+    try {
+      const { rawPredictions, featureVector } = await classifyImageFromUri(uri);
+      const formatted: ImageLabelPrediction[] = rawPredictions.map((item) => ({
+        className: item.className,
+        probability: Math.round(item.probability * 10000) / 100,
+      }));
+
+      setLastFeatureDim(featureVector.length);
+
+      let existing: ImageEmbeddingRecord[] = [];
       try {
-        const results = await modelRef.current!.classify(img);
-        const formatted = results.map((item) => ({
-          className: item.className,
-          probability: Math.round(item.probability * 10000) / 100,
-        }));
-
-        setPredictions(formatted);
-
-        if (formatted.length > 0) {
-          const top = formatted[0];
-          const normalized = normalizeClassName(top.className);
-          setCategory(normalized);
-          setObjectHint(getCategoryDescription(top.className));
-        }
-      } catch (error) {
-        console.error("Classification error", error);
-        setObjectHint("分類失敗，請嘗試重新上傳圖片。");
-      } finally {
-        setLoading(false);
+        existing = await loadAllRecords();
+      } catch (e) {
+        console.error("loadAllRecords failed", e);
       }
-    };
 
-    img.onerror = () => {
+      const duplicates = findEmbeddingDuplicates(featureVector, existing);
+
+      try {
+        if (duplicates.length > 0) {
+          const dupHits = duplicates
+            .map((r) => ({
+              record: r,
+              similarity: cosineSimilarity(featureVector, r.featureVector),
+            }))
+            .sort((a, b) => b.similarity - a.similarity)
+            .slice(0, 3)
+            .map((x) => recordToSimilarHit(x.record, x.similarity));
+          setDbSimilarHits(dupHits);
+          setDbSimilarNotice(
+            "此圖與資料庫中既有嵌入幾乎相同（餘弦相似度 ≥ 99.99%），未新增重複紀錄。",
+          );
+          if (__DEV__) {
+            console.log(
+              "[image-embedding-db] 略過寫入：與既有紀錄重複",
+              duplicates.map((d) => d.id),
+            );
+          }
+        } else {
+          const newRec = await appendRecord({
+            featureVector,
+            labelPredictions: formatted,
+          });
+          const all = await loadAllRecords();
+          const neighbors = topKSimilarRecords(
+            featureVector,
+            all,
+            3,
+            newRec.id,
+          );
+          setDbSimilarHits(
+            neighbors.map((n) => recordToSimilarHit(n.record, n.similarity)),
+          );
+          if (neighbors.length === 0) {
+            if (all.length <= 1) {
+              setDbSimilarNotice(
+                "已寫入新紀錄。目前資料庫僅有此筆，尚無其他紀錄可列相似項。",
+              );
+            } else {
+              setDbSimilarNotice(
+                "已寫入新紀錄。其餘紀錄與本圖餘弦相似度皆低於 80%，未列出相近圖片。",
+              );
+            }
+          } else {
+            setDbSimilarNotice(
+              "已寫入新紀錄。以下為資料庫中與本圖最相近且相似度 ≥ 80% 的紀錄（最多 3 筆，不含剛新增者）：",
+            );
+          }
+          const count = await getRecordCount();
+          setEmbeddingDbCount(count);
+          setEmbeddingDbFileUri(getEmbeddingDbFileUri());
+        }
+      } catch (storeErr) {
+        console.error("Image embedding DB write failed", storeErr);
+        const detail =
+          storeErr instanceof Error ? storeErr.message : String(storeErr);
+        setEmbeddingDbError(
+          `無法寫入本地 JSON：${detail}（若 documentDirectory 為空，請確認已用原生執行環境執行 App，而非僅 Web。）`,
+        );
+      }
+
+      setPredictions(formatted);
+
+      if (formatted.length > 0) {
+        const top = formatted[0];
+        const normalized = normalizeClassName(top.className);
+        setCategory(normalized);
+        setObjectHint(getCategoryDescription(top.className));
+      }
+    } catch (error) {
+      console.error("Classification error", error);
+      setObjectHint("分類失敗，請確認為 JPEG/PNG 等常見格式後再試。");
+      setLastFeatureDim(null);
+      setDbSimilarHits([]);
+      setDbSimilarNotice(null);
+    } finally {
       setLoading(false);
-      setObjectHint("圖片載入失敗，請確認檔案格式。");
-    };
-
-    img.src = uri;
+    }
   };
 
-  const handleImageUpload = (event: any) => {
-    const file = event.target?.files?.[0];
-    if (!file) {
+  const handlePickFromLibrary = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("權限不足", "需要相簿權限才能選擇圖片。");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const result = loadEvent.target?.result;
-      if (typeof result === "string") {
-        setImageUri(result);
-        classifyImage(result);
-      }
-    };
-    reader.readAsDataURL(file);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    const uri = result.assets[0].uri;
+    setImageUri(uri);
+    await classifyImage(uri);
+  };
+
+  const handleTakePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert("權限不足", "需要相機權限才能拍照。");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.uri) {
+      return;
+    }
+
+    const uri = result.assets[0].uri;
+    setImageUri(uri);
+    await classifyImage(uri);
   };
 
   const handleSubmit = () => {
@@ -374,7 +481,6 @@ export function LostItemForm() {
       });
 
       const { latitude, longitude } = locationResult.coords;
-      setLocationData({ latitude, longitude });
 
       // 使用 Nominatim 服務進行反向地理編碼（替代已廢棄的 Google Geocoding API）
       try {
@@ -408,14 +514,18 @@ export function LostItemForm() {
             `📍 未知地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
           );
         }
+        setPlaceGeometry({
+          location: { lat: latitude, lng: longitude },
+        });
       } catch (error) {
         console.error("Reverse geocoding error:", error);
         setLocation(
           `📍 位置座標 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
         );
+        setPlaceGeometry({
+          location: { lat: latitude, lng: longitude },
+        });
       }
-
-      setShowLocationOptions(false);
     } catch (error) {
       console.error("Get location error:", error);
       Alert.alert("獲取位置失敗", "請檢查位置權限或網路連接。");
@@ -424,94 +534,28 @@ export function LostItemForm() {
     }
   };
 
-  const handleLocationInput = (text: string) => {
-    setLocation(text);
-    setLocationData(null); // 清除 GPS 數據，因為用戶手動輸入
-    if (Platform.OS !== "web") {
-      return;
-    }
-
-    if (webSearchDebounceRef.current) {
-      clearTimeout(webSearchDebounceRef.current);
-    }
-
-    const trimmedText = text.trim();
-    if (trimmedText.length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setShowSearchResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowSearchResults(true);
-    webSearchDebounceRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(trimmedText)}`,
-          {
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "FindMyApp/1.0",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Autocomplete request failed");
-        }
-
-        const data = await response.json();
-        const suggestions: WebPlaceSuggestion[] = Array.isArray(data)
-          ? data.map((item: any, index: number) => ({
-              id: `${item.place_id ?? index}`,
-              description: item.display_name ?? "未知地點",
-              latitude: Number(item.lat),
-              longitude: Number(item.lon),
-            }))
-          : [];
-
-        setSearchResults(suggestions);
-      } catch (error) {
-        console.error("Web autocomplete error:", error);
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-  };
-
-  const handleWebSuggestionSelect = (item: WebPlaceSuggestion) => {
-    setLocation(item.description);
-    setLocationData({
-      latitude: item.latitude,
-      longitude: item.longitude,
-    });
-    setShowSearchResults(false);
-    setSearchResults([]);
-  };
-
   const handlePlacesSelect = (data: any, details: any) => {
-    // 從Google Places Autocomplete獲取選擇的地址
-    const selectedAddress = data.description;
-    const lat = details?.geometry?.location?.lat;
-    const lng = details?.geometry?.location?.lng;
-
+    const selectedAddress =
+      typeof data?.description === "string" ? data.description : "";
     setLocation(selectedAddress);
 
-    if (lat && lng) {
-      setLocationData({ latitude: lat, longitude: lng });
+    const geometry = extractPlaceGeometry(details);
+    setPlaceGeometry(geometry);
+
+    if (geometry) {
+      if (__DEV__) {
+        console.log("[Places] geometry", {
+          location: geometry.location,
+          viewport: geometry.viewport,
+          place_id: (details as { place_id?: string })?.place_id,
+        });
+      }
+    } else {
+      console.warn(
+        "[Places] 未取得 geometry，請確認已設 fetchDetails、API Key 已啟用 Place Details，且 GooglePlacesDetailsQuery 含 geometry 欄位。",
+        details,
+      );
     }
-
-    console.log("Selected place:", {
-      address: selectedAddress,
-      latitude: lat,
-      longitude: lng,
-    });
-  };
-
-  const openLocationOptions = () => {
-    setShowLocationOptions(!showLocationOptions);
   };
 
   return (
@@ -557,117 +601,79 @@ export function LostItemForm() {
             )}
           </TouchableOpacity>
 
-          {/* Web 環境下避免 GooglePlacesAutocomplete 初始化錯誤 */}
-          {Platform.OS === "web" ? (
-            <View style={styles.webSearchContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="輸入地址或地點名稱"
-                placeholderTextColor="rgba(88, 100, 122, 0.6)"
-                value={location}
-                onChangeText={handleLocationInput}
-                onFocus={() => {
-                  if (searchResults.length > 0) {
-                    setShowSearchResults(true);
-                  }
+          <View style={styles.autocompleteContainer}>
+            {GooglePlacesAutocompleteComponent ? (
+              <GooglePlacesAutocompleteComponent
+                placeholder="搜尋香港地址或地點"
+                onPress={handlePlacesSelect}
+                fetchDetails
+                debounce={300}
+                listViewDisplayed="auto"
+                keepResultsAfterBlur
+                enablePoweredByContainer={false}
+                GooglePlacesDetailsQuery={{
+                  fields: "geometry,formatted_address,name,place_id",
+                }}
+                query={{
+                  key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                  language: "zh-HK",
+                  components: "country:hk",
+                }}
+                onFail={(error: any) => {
+                  console.error("Google places autocomplete error:", error);
+                }}
+                textInputProps={{
+                  placeholderTextColor: "rgba(88, 100, 122, 0.6)",
+                }}
+                styles={{
+                  container: {
+                    flex: 0,
+                    width: "100%",
+                  },
+                  textInputContainer: {
+                    width: "100%",
+                    borderBottomColor: "#c8c7cc",
+                    borderBottomWidth: 1,
+                  },
+                  textInput: {
+                    height: 44,
+                    color: "#5d5d5d",
+                    fontSize: 16,
+                    padding: 10,
+                  },
+                  predefinedPlacesDescription: {
+                    color: "#1faadb",
+                  },
+                  listView: {
+                    position: "absolute",
+                    top: 54,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "#fff",
+                    zIndex: 1000,
+                    elevation: 10,
+                  },
+                  row: {
+                    paddingHorizontal: 10,
+                    paddingVertical: 12,
+                    borderBottomColor: "#e5e5e5",
+                    borderBottomWidth: 1,
+                  },
+                  description: {
+                    fontSize: 14,
+                    color: "#666",
+                  },
+                  loader: {
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    height: 20,
+                  },
                 }}
               />
-              {isSearching && (
-                <View style={styles.webSearchLoading}>
-                  <ActivityIndicator size="small" color="#007AFF" />
-                </View>
-              )}
-              {showSearchResults && searchResults.length > 0 && (
-                <View style={styles.webSearchResults}>
-                  <FlatList
-                    data={searchResults}
-                    keyExtractor={(item) => item.id}
-                    keyboardShouldPersistTaps="handled"
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.webSearchResultItem}
-                        onPress={() => handleWebSuggestionSelect(item)}
-                      >
-                        <Text style={styles.webSearchResultText}>
-                          {item.description}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
-              )}
-            </View>
-          ) : (
-            <View style={styles.autocompleteContainer}>
-              {GooglePlacesAutocompleteComponent ? (
-                <GooglePlacesAutocompleteComponent
-                  placeholder="搜尋地址或地點名稱"
-                  onPress={handlePlacesSelect}
-                  fetchDetails
-                  debounce={300}
-                  listViewDisplayed="auto"
-                  keepResultsAfterBlur
-                  enablePoweredByContainer={false}
-                  query={{
-                    key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, // 需要替換為您的API Key
-                    language: "zh-TW",
-                  }}
-                  onFail={(error: any) => {
-                    console.error("Google places autocomplete error:", error);
-                  }}
-                  textInputProps={{
-                    placeholderTextColor: "rgba(88, 100, 122, 0.6)",
-                  }}
-                  styles={{
-                    container: {
-                      flex: 0,
-                      width: "100%",
-                    },
-                    textInputContainer: {
-                      width: "100%",
-                      borderBottomColor: "#c8c7cc",
-                      borderBottomWidth: 1,
-                    },
-                    textInput: {
-                      height: 44,
-                      color: "#5d5d5d",
-                      fontSize: 16,
-                      padding: 10,
-                    },
-                    predefinedPlacesDescription: {
-                      color: "#1faadb",
-                    },
-                    listView: {
-                      position: "absolute",
-                      top: 54,
-                      left: 0,
-                      right: 0,
-                      backgroundColor: "#fff",
-                      zIndex: 1000,
-                      elevation: 10,
-                    },
-                    row: {
-                      paddingHorizontal: 10,
-                      paddingVertical: 12,
-                      borderBottomColor: "#e5e5e5",
-                      borderBottomWidth: 1,
-                    },
-                    description: {
-                      fontSize: 14,
-                      color: "#666",
-                    },
-                    loader: {
-                      flexDirection: "row",
-                      justifyContent: "flex-end",
-                      height: 20,
-                    },
-                  }}
-                />
-              ) : (
-                <ActivityIndicator size="small" color="#007AFF" />
-              )}
-            </View>
-          )}
+            ) : (
+              <ActivityIndicator size="small" color="#007AFF" />
+            )}
+          </View>
 
           {/* 當前位置信息 */}
           {location && (
@@ -675,6 +681,12 @@ export function LostItemForm() {
               <ThemedText style={styles.locationInfoText}>
                 已選擇：{location}
               </ThemedText>
+              {placeGeometry ? (
+                <ThemedText style={styles.locationGeometryText}>
+                  geometry：緯度 {placeGeometry.location.lat.toFixed(6)}、經度{" "}
+                  {placeGeometry.location.lng.toFixed(6)}
+                </ThemedText>
+              ) : null}
             </View>
           )}
         </View>
@@ -706,27 +718,49 @@ export function LostItemForm() {
 
         <View style={styles.uploadSection}>
           <ThemedText style={styles.label}>上傳物品圖片</ThemedText>
-          {Platform.OS === "web" ? (
-            <View style={styles.fileUploadWrapper}>
-              <label style={styles.fileUploadLabel}>
-                <Text style={styles.fileUploadText}>
-                  {modelLoaded ? "點此選擇圖片" : "模型載入中，請稍候..."}
-                </Text>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={!modelLoaded}
-                  style={styles.fileUploadInput}
-                />
-              </label>
-              {loading && <ActivityIndicator size="small" color="#007AFF" />}
-            </View>
-          ) : (
-            <ThemedText style={styles.warningText}>
-              僅 Web 環境支援 TensorFlow.js 圖片上傳辨識。
+          <View style={styles.fileUploadWrapper}>
+            <TouchableOpacity
+              style={[
+                styles.pickImageButton,
+                (!modelLoaded || loading) && styles.pickImageButtonDisabled,
+              ]}
+              onPress={handleTakePhoto}
+              disabled={!modelLoaded || loading}
+            >
+              <Text style={styles.pickImageButtonText}>
+                {modelLoaded ? "立即拍照" : "模型載入中，請稍候…"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.pickImageButtonOutline,
+                (!modelLoaded || loading) && styles.pickImageButtonDisabled,
+              ]}
+              onPress={handlePickFromLibrary}
+              disabled={!modelLoaded || loading}
+            >
+              <Text style={styles.pickImageButtonOutlineText}>
+                從相簿選擇
+              </Text>
+            </TouchableOpacity>
+            {loading ? (
+              <ActivityIndicator
+                size="small"
+                color="#007AFF"
+                style={styles.pickImageSpinner}
+              />
+            ) : null}
+          </View>
+          {modelLoaded && embeddingDbFileUri ? (
+            <ThemedText style={styles.dbPathHint}>
+              嵌入資料庫檔案（僅在裝置上）：{"\n"}
+              {embeddingDbFileUri}
             </ThemedText>
-          )}
+          ) : modelLoaded && !embeddingDbFileUri ? (
+            <ThemedText style={styles.dbError}>
+              無法取得 App 文件目錄，辨識後可能無法儲存 JSON。
+            </ThemedText>
+          ) : null}
         </View>
 
         {imageUri ? (
@@ -754,6 +788,42 @@ export function LostItemForm() {
                 </ThemedText>
               </View>
             ))}
+            {lastFeatureDim != null ? (
+              <ThemedText style={styles.dbHint}>
+                特徵向量維度：{lastFeatureDim}（MobileNet 嵌入，供相似度比對用）
+              </ThemedText>
+            ) : null}
+            <ThemedText style={styles.dbHint}>
+              本地 JSON：{embeddingDbCount} 筆。檔名 image-embedding-db.json
+              位於本機 App 沙盒（不會出現在電腦的專案資料夾）。
+              {embeddingDbFileUri
+                ? `\n路徑：${embeddingDbFileUri}`
+                : "\n（目前無法取得 documentDirectory，寫入可能失敗。）"}
+            </ThemedText>
+            {embeddingDbError ? (
+              <ThemedText style={styles.dbError}>{embeddingDbError}</ThemedText>
+            ) : null}
+            {dbSimilarNotice ? (
+              <ThemedText style={styles.similarNotice}>{dbSimilarNotice}</ThemedText>
+            ) : null}
+            {dbSimilarHits.length > 0 ? (
+              <View style={styles.similarBlock}>
+                <ThemedText type="subtitle" style={styles.similarTitle}>
+                  資料庫相似紀錄（相似度 ≥ 80%，最多 3 筆）
+                </ThemedText>
+                {dbSimilarHits.map((h) => (
+                  <View key={h.recordId} style={styles.similarRow}>
+                    <ThemedText style={styles.similarMain}>
+                      餘弦相似度 {(h.similarity * 100).toFixed(2)}% ·{" "}
+                      {h.topLabelLine}
+                    </ThemedText>
+                    <ThemedText style={styles.similarMeta}>
+                      id：{h.recordId} · {h.createdAt}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -817,31 +887,49 @@ const styles = StyleSheet.create({
   uploadSection: {
     marginBottom: 14,
   },
+  dbPathHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: "#5A6B8A",
+    lineHeight: 16,
+  },
   fileUploadWrapper: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  fileUploadSpacer: {
-    width: 12,
-  },
-  fileUploadLabel: {
+  pickImageButton: {
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
     backgroundColor: "#0A84FF",
     alignSelf: "flex-start",
   },
-  fileUploadText: {
+  pickImageButtonOutline: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#0A84FF",
+    backgroundColor: "transparent",
+    alignSelf: "flex-start",
+  },
+  pickImageButtonDisabled: {
+    opacity: 0.55,
+  },
+  pickImageButtonText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
   },
-  fileUploadInput: {
-    display: "none",
+  pickImageButtonOutlineText: {
+    color: "#0A84FF",
+    fontSize: 15,
+    fontWeight: "600",
   },
-  warningText: {
-    fontSize: 13,
-    color: "#8B95A3",
+  pickImageSpinner: {
+    marginLeft: 8,
   },
   previewContainer: {
     borderRadius: 16,
@@ -877,6 +965,52 @@ const styles = StyleSheet.create({
   probabilityText: {
     fontSize: 14,
     color: "#4C5A74",
+  },
+  dbHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: "#5A6B8A",
+    lineHeight: 18,
+  },
+  dbError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#B91C1C",
+    lineHeight: 18,
+  },
+  similarNotice: {
+    marginTop: 10,
+    fontSize: 13,
+    color: "#1B4F72",
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  similarBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E4E9F2",
+  },
+  similarTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 8,
+    color: "#152845",
+  },
+  similarRow: {
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#EEF2F7",
+  },
+  similarMain: {
+    fontSize: 14,
+    color: "#152845",
+  },
+  similarMeta: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#5A6B8A",
   },
   submitButton: {
     backgroundColor: "#007AFF",
@@ -959,6 +1093,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#2E7D32",
   },
+  locationGeometryText: {
+    marginTop: 6,
+    fontSize: 11,
+    color: "#1B5E20",
+    lineHeight: 16,
+  },
   autocompleteContainer: {
     marginVertical: 12,
     borderWidth: 1,
@@ -966,32 +1106,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "visible",
     zIndex: 50,
-  },
-  webSearchContainer: {
-    marginTop: 12,
-  },
-  webSearchLoading: {
-    marginTop: 8,
-    alignItems: "flex-start",
-  },
-  webSearchResults: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#D6DFEA",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    maxHeight: 220,
-    overflow: "hidden",
-  },
-  webSearchResultItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F7",
-  },
-  webSearchResultText: {
-    fontSize: 13,
-    color: "#334155",
   },
   useCurrentLocationButton: {
     marginTop: 10,
