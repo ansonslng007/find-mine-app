@@ -1,17 +1,7 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-  cosineSimilarity,
-  findEmbeddingDuplicates,
-  topKSimilarRecords,
-} from "@/lib/embedding-similarity";
-import {
-  appendRecord,
-  getEmbeddingDbFileUri,
-  getRecordCount,
-  loadAllRecords,
-  type ImageEmbeddingRecord,
-  type ImageLabelPrediction,
-} from "@/lib/image-embedding-db";
+import { useCreateItem } from "@/hooks/use-create-item";
+import { ApiError } from "@/lib/api/client";
+import { type ImageLabelPrediction } from "@/lib/image-embedding-db";
 import {
   classifyImageFromUri,
   disposeMobilenet,
@@ -34,16 +24,14 @@ import {
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 
-interface PredictionResult {
+interface ImageLabelPrediction {
   className: string;
   probability: number;
 }
 
-interface DbSimilarHit {
-  recordId: string;
-  createdAt: string;
-  similarity: number;
-  topLabelLine: string;
+interface PredictionResult {
+  className: string;
+  probability: number;
 }
 
 /** Place Details 回傳的 geometry（location + 選填 viewport）。 */
@@ -93,24 +81,40 @@ function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
   };
 }
 
+const EMBEDDING_DIM = 1024;
+const MODEL_VERSION = "mobilenet-v1";
+
+function parseOccurredAtIso(raw: string): string | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+function imageMimeToFileName(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m.includes("png")) return "upload.png";
+  if (m.includes("webp")) return "upload.webp";
+  return "upload.jpg";
+}
+
 export function LostItemForm() {
+  const createItemMutation = useCreateItem();
   const [modelLoaded, setModelLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageMime, setImageMime] = useState("image/jpeg");
+  const [featureVector, setFeatureVector] = useState<number[] | null>(null);
+  const [title, setTitle] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
-  const [embeddingDbCount, setEmbeddingDbCount] = useState(0);
+  const [submitError, setSubmitError] = useState("");
   const [lastFeatureDim, setLastFeatureDim] = useState<number | null>(null);
-  const [embeddingDbError, setEmbeddingDbError] = useState<string | null>(null);
-  const [embeddingDbFileUri, setEmbeddingDbFileUri] = useState<string | null>(
-    null,
-  );
-  const [dbSimilarHits, setDbSimilarHits] = useState<DbSimilarHit[]>([]);
-  const [dbSimilarNotice, setDbSimilarNotice] = useState<string | null>(null);
   const [objectHint, setObjectHint] =
     useState("請上傳圖片後，自動填入分類類別。");
   const [locationLoading, setLocationLoading] = useState(false);
@@ -146,18 +150,6 @@ export function LostItemForm() {
     return () => {
       disposeMobilenet();
     };
-  }, []);
-
-  useEffect(() => {
-    getRecordCount()
-      .then((n) => {
-        setEmbeddingDbCount(n);
-        setEmbeddingDbFileUri(getEmbeddingDbFileUri());
-      })
-      .catch(() => {
-        setEmbeddingDbCount(0);
-        setEmbeddingDbFileUri(getEmbeddingDbFileUri());
-      });
   }, []);
 
   useEffect(() => {
@@ -199,15 +191,8 @@ export function LostItemForm() {
     longitude: number,
   ) => {
     // Nominatim 返回的地址格式
-    const {
-      road,
-      house_number,
-      neighbourhood,
-      suburb,
-      city,
-      county,
-      country,
-    } = address;
+    const { road, house_number, neighbourhood, suburb, city, county, country } =
+      address;
 
     const locationParts = [];
 
@@ -279,22 +264,6 @@ export function LostItemForm() {
     return `模型辨識為「${normalizeClassName(className)}」，請確認是否填入此類別。`;
   };
 
-  const recordToSimilarHit = (
-    record: ImageEmbeddingRecord,
-    similarity: number,
-  ): DbSimilarHit => {
-    const top = record.labelPredictions[0];
-    const labelLine = top
-      ? `${normalizeClassName(top.className)}（${top.probability}%）`
-      : "—";
-    return {
-      recordId: record.id,
-      createdAt: record.createdAt,
-      similarity,
-      topLabelLine: labelLine,
-    };
-  };
-
   const classifyImage = async (uri: string) => {
     if (!modelLoaded) {
       return;
@@ -303,89 +272,22 @@ export function LostItemForm() {
     setLoading(true);
     setPredictions([]);
     setSubmitMessage("");
-    setEmbeddingDbError(null);
-    setDbSimilarHits([]);
-    setDbSimilarNotice(null);
+    setSubmitError("");
+    setFeatureVector(null);
 
     try {
-      const { rawPredictions, featureVector } = await classifyImageFromUri(uri);
+      const { rawPredictions, featureVector: vec } =
+        await classifyImageFromUri(uri);
       const formatted: ImageLabelPrediction[] = rawPredictions.map((item) => ({
         className: item.className,
         probability: Math.round(item.probability * 10000) / 100,
       }));
 
-      setLastFeatureDim(featureVector.length);
-
-      let existing: ImageEmbeddingRecord[] = [];
-      try {
-        existing = await loadAllRecords();
-      } catch (e) {
-        console.error("loadAllRecords failed", e);
-      }
-
-      const duplicates = findEmbeddingDuplicates(featureVector, existing);
-
-      try {
-        if (duplicates.length > 0) {
-          const dupHits = duplicates
-            .map((r) => ({
-              record: r,
-              similarity: cosineSimilarity(featureVector, r.featureVector),
-            }))
-            .sort((a, b) => b.similarity - a.similarity)
-            .slice(0, 3)
-            .map((x) => recordToSimilarHit(x.record, x.similarity));
-          setDbSimilarHits(dupHits);
-          setDbSimilarNotice(
-            "此圖與資料庫中既有嵌入幾乎相同（餘弦相似度 ≥ 99.99%），未新增重複紀錄。",
-          );
-          if (__DEV__) {
-            console.log(
-              "[image-embedding-db] 略過寫入：與既有紀錄重複",
-              duplicates.map((d) => d.id),
-            );
-          }
-        } else {
-          const newRec = await appendRecord({
-            featureVector,
-            labelPredictions: formatted,
-          });
-          const all = await loadAllRecords();
-          const neighbors = topKSimilarRecords(
-            featureVector,
-            all,
-            3,
-            newRec.id,
-          );
-          setDbSimilarHits(
-            neighbors.map((n) => recordToSimilarHit(n.record, n.similarity)),
-          );
-          if (neighbors.length === 0) {
-            if (all.length <= 1) {
-              setDbSimilarNotice(
-                "已寫入新紀錄。目前資料庫僅有此筆，尚無其他紀錄可列相似項。",
-              );
-            } else {
-              setDbSimilarNotice(
-                "已寫入新紀錄。其餘紀錄與本圖餘弦相似度皆低於 80%，未列出相近圖片。",
-              );
-            }
-          } else {
-            setDbSimilarNotice(
-              "已寫入新紀錄。以下為資料庫中與本圖最相近且相似度 ≥ 80% 的紀錄（最多 3 筆，不含剛新增者）：",
-            );
-          }
-          const count = await getRecordCount();
-          setEmbeddingDbCount(count);
-          setEmbeddingDbFileUri(getEmbeddingDbFileUri());
-        }
-      } catch (storeErr) {
-        console.error("Image embedding DB write failed", storeErr);
-        const detail =
-          storeErr instanceof Error ? storeErr.message : String(storeErr);
-        setEmbeddingDbError(
-          `無法寫入本地 JSON：${detail}（若 documentDirectory 為空，請確認已用原生執行環境執行 App，而非僅 Web。）`,
-        );
+      setLastFeatureDim(vec.length);
+      if (vec.length === EMBEDDING_DIM) {
+        setFeatureVector(vec);
+      } else {
+        setFeatureVector(null);
       }
 
       setPredictions(formatted);
@@ -400,8 +302,7 @@ export function LostItemForm() {
       console.error("Classification error", error);
       setObjectHint("分類失敗，請確認為 JPEG/PNG 等常見格式後再試。");
       setLastFeatureDim(null);
-      setDbSimilarHits([]);
-      setDbSimilarNotice(null);
+      setFeatureVector(null);
     } finally {
       setLoading(false);
     }
@@ -424,8 +325,10 @@ export function LostItemForm() {
       return;
     }
 
-    const uri = result.assets[0].uri;
+    const asset = result.assets[0];
+    const uri = asset.uri;
     setImageUri(uri);
+    setImageMime(asset.mimeType ?? "image/jpeg");
     await classifyImage(uri);
   };
 
@@ -446,15 +349,70 @@ export function LostItemForm() {
       return;
     }
 
-    const uri = result.assets[0].uri;
+    const asset = result.assets[0];
+    const uri = asset.uri;
     setImageUri(uri);
+    setImageMime(asset.mimeType ?? "image/jpeg");
     await classifyImage(uri);
   };
 
   const handleSubmit = () => {
-    setSubmitMessage(
-      `已建立失物資料：時間 ${time || "未填"}, 地點 ${location || "未填"}, 類別 ${category || "未填"}。`,
-    );
+    setSubmitMessage("");
+    setSubmitError("");
+
+    if (!modelLoaded) {
+      Alert.alert("無法送出", "模型尚未載入完成，請稍候。");
+      return;
+    }
+    if (!imageUri) {
+      Alert.alert("無法送出", "請先拍照或從相簿選擇物品圖片。");
+      return;
+    }
+    if (!title.trim()) {
+      Alert.alert("無法送出", "請填寫「標題 / 物品名稱」。");
+      return;
+    }
+    if (featureVector?.length !== EMBEDDING_DIM) {
+      Alert.alert(
+        "無法送出",
+        "尚未取得有效的圖片嵌入向量，請確認已上傳圖片且辨識完成。",
+      );
+      return;
+    }
+
+    const occurredAt = parseOccurredAtIso(time);
+
+    const formData = {
+      kind: "lost",
+      title: title.trim(),
+      description: description.trim() || undefined,
+      locationText: location.trim() || undefined,
+      occurredAt,
+      modelVersion: MODEL_VERSION,
+      embedding: featureVector,
+      image: {
+        uri: imageUri,
+        name: imageMimeToFileName(imageMime),
+        type: imageMime || "image/jpeg",
+      },
+    } as const;
+    console.log(formData, "formData");
+    createItemMutation.mutate(formData, {
+      onSuccess: (data) => {
+        setSubmitMessage(
+          `已同步到伺服器。項目 id：${data.item.id}（時間 ${time || "未填"}, 地點 ${location || "未填"}, 類別 ${category || "未填"}）`,
+        );
+      },
+      onError: (e) => {
+        const msg =
+          e instanceof ApiError
+            ? `${e.code}：${e.message}`
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        setSubmitError(msg);
+      },
+    });
   };
 
   const requestLocationPermission = async () => {
@@ -572,6 +530,17 @@ export function LostItemForm() {
         <ThemedText style={styles.subheader}>
           請填寫遺失時間、地點，並上傳物品圖片以便自動辨識類別。
         </ThemedText>
+
+        <View style={styles.formGroup}>
+          <ThemedText style={styles.label}>標題 / 物品名稱</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="例如：黑色後背包"
+            placeholderTextColor="rgba(88, 100, 122, 0.6)"
+            value={title}
+            onChangeText={setTitle}
+          />
+        </View>
 
         <View style={styles.formGroup}>
           <ThemedText style={styles.label}>遺失時間</ThemedText>
@@ -739,9 +708,7 @@ export function LostItemForm() {
               onPress={handlePickFromLibrary}
               disabled={!modelLoaded || loading}
             >
-              <Text style={styles.pickImageButtonOutlineText}>
-                從相簿選擇
-              </Text>
+              <Text style={styles.pickImageButtonOutlineText}>從相簿選擇</Text>
             </TouchableOpacity>
             {loading ? (
               <ActivityIndicator
@@ -751,16 +718,6 @@ export function LostItemForm() {
               />
             ) : null}
           </View>
-          {modelLoaded && embeddingDbFileUri ? (
-            <ThemedText style={styles.dbPathHint}>
-              嵌入資料庫檔案（僅在裝置上）：{"\n"}
-              {embeddingDbFileUri}
-            </ThemedText>
-          ) : modelLoaded && !embeddingDbFileUri ? (
-            <ThemedText style={styles.dbError}>
-              無法取得 App 文件目錄，辨識後可能無法儲存 JSON。
-            </ThemedText>
-          ) : null}
         </View>
 
         {imageUri ? (
@@ -790,49 +747,33 @@ export function LostItemForm() {
             ))}
             {lastFeatureDim != null ? (
               <ThemedText style={styles.dbHint}>
-                特徵向量維度：{lastFeatureDim}（MobileNet 嵌入，供相似度比對用）
+                特徵向量維度：{lastFeatureDim}（MobileNet
+                嵌入，建立失物時會一併上傳至伺服器）
               </ThemedText>
-            ) : null}
-            <ThemedText style={styles.dbHint}>
-              本地 JSON：{embeddingDbCount} 筆。檔名 image-embedding-db.json
-              位於本機 App 沙盒（不會出現在電腦的專案資料夾）。
-              {embeddingDbFileUri
-                ? `\n路徑：${embeddingDbFileUri}`
-                : "\n（目前無法取得 documentDirectory，寫入可能失敗。）"}
-            </ThemedText>
-            {embeddingDbError ? (
-              <ThemedText style={styles.dbError}>{embeddingDbError}</ThemedText>
-            ) : null}
-            {dbSimilarNotice ? (
-              <ThemedText style={styles.similarNotice}>{dbSimilarNotice}</ThemedText>
-            ) : null}
-            {dbSimilarHits.length > 0 ? (
-              <View style={styles.similarBlock}>
-                <ThemedText type="subtitle" style={styles.similarTitle}>
-                  資料庫相似紀錄（相似度 ≥ 80%，最多 3 筆）
-                </ThemedText>
-                {dbSimilarHits.map((h) => (
-                  <View key={h.recordId} style={styles.similarRow}>
-                    <ThemedText style={styles.similarMain}>
-                      餘弦相似度 {(h.similarity * 100).toFixed(2)}% ·{" "}
-                      {h.topLabelLine}
-                    </ThemedText>
-                    <ThemedText style={styles.similarMeta}>
-                      id：{h.recordId} · {h.createdAt}
-                    </ThemedText>
-                  </View>
-                ))}
-              </View>
             ) : null}
           </View>
         ) : null}
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>建立失物資料</Text>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            createItemMutation.isPending && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={createItemMutation.isPending}
+        >
+          {createItemMutation.isPending ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.submitButtonText}>建立失物資料</Text>
+          )}
         </TouchableOpacity>
 
         {submitMessage ? (
           <ThemedText style={styles.submitMessage}>{submitMessage}</ThemedText>
+        ) : null}
+        {submitError ? (
+          <ThemedText style={styles.submitError}>{submitError}</ThemedText>
         ) : null}
       </ScrollView>
     </ThemedView>
@@ -886,12 +827,6 @@ const styles = StyleSheet.create({
   },
   uploadSection: {
     marginBottom: 14,
-  },
-  dbPathHint: {
-    marginTop: 10,
-    fontSize: 11,
-    color: "#5A6B8A",
-    lineHeight: 16,
   },
   fileUploadWrapper: {
     flexDirection: "row",
@@ -972,46 +907,6 @@ const styles = StyleSheet.create({
     color: "#5A6B8A",
     lineHeight: 18,
   },
-  dbError: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#B91C1C",
-    lineHeight: 18,
-  },
-  similarNotice: {
-    marginTop: 10,
-    fontSize: 13,
-    color: "#1B4F72",
-    lineHeight: 20,
-    fontWeight: "600",
-  },
-  similarBlock: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#E4E9F2",
-  },
-  similarTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 8,
-    color: "#152845",
-  },
-  similarRow: {
-    marginBottom: 10,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#EEF2F7",
-  },
-  similarMain: {
-    fontSize: 14,
-    color: "#152845",
-  },
-  similarMeta: {
-    marginTop: 4,
-    fontSize: 11,
-    color: "#5A6B8A",
-  },
   submitButton: {
     backgroundColor: "#007AFF",
     paddingVertical: 14,
@@ -1027,6 +922,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#1B4F72",
+  },
+  submitError: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#B91C1C",
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   locationHeader: {
     flexDirection: "row",
