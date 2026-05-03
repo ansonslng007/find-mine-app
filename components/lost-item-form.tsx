@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";
-import { type ImageLabelPrediction } from "@/lib/image-embedding-db";
 import {
   classifyImageFromUri,
   disposeMobilenet,
