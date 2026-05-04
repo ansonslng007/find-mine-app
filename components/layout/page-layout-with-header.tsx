@@ -29,34 +29,39 @@ export function PageLayoutWithHeader({
         page: {
           flex: 1,
           backgroundColor: c.pageBackground,
-          paddingHorizontal: 16,
         },
         content: {
+          paddingHorizontal: 16,
+          paddingTop: 16,
           paddingBottom: 40,
-          paddingTop: 8,
+        },
+        scrollContent: {
+          gap: 12,
         },
       }),
     [c],
   );
 
   return (
-    <View style={[pageStyles.page, { paddingTop: insets.top + 8 }]}>
+    <View style={[pageStyles.page]}>
       <AppHeader
         screenTitle={screenTitle}
         screenSubtitle={screenSubtitle}
         icon={icon}
       />
 
-      {useScrollView ? (
-        <ScrollView
-          contentContainerStyle={pageStyles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        children
-      )}
+      <View style={pageStyles.content}>
+        {useScrollView ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={pageStyles.scrollContent}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          children
+        )}
+      </View>
     </View>
   );
 }
