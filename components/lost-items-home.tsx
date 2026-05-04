@@ -1,6 +1,6 @@
+import { AppHeader } from "@/components/layout/app-header";
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import { passesCategoryChip } from "@/components/lost-items/format";
-import { AppHeader } from "@/components/layout/app-header";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
 import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
@@ -15,9 +15,61 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
+  type TextStyle,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type LostItemsListEmptyProps = Readonly<{
+  isPending: boolean;
+  isError: boolean;
+  error: unknown;
+  onRetry: () => void;
+  brandColor: string;
+  centerBlockStyle: ViewStyle;
+  labelErrorStyle: TextStyle;
+  emptyTextStyle: TextStyle;
+}>;
+
+function LostItemsListEmpty({
+  isPending,
+  isError,
+  error,
+  onRetry,
+  brandColor,
+  centerBlockStyle,
+  labelErrorStyle,
+  emptyTextStyle,
+}: LostItemsListEmptyProps) {
+  const errorMessage = error instanceof Error ? error.message : "無法載入列表";
+
+  if (isPending) {
+    return (
+      <View style={centerBlockStyle}>
+        <ActivityIndicator size="large" color={brandColor} />
+        <ThemedText type="bodyMuted">載入中…</ThemedText>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={centerBlockStyle}>
+        <ThemedText type="labelError" style={labelErrorStyle}>
+          {errorMessage}
+        </ThemedText>
+        <PillButton label="重試" onPress={onRetry} />
+      </View>
+    );
+  }
+
+  return (
+    <ThemedText type="bodyMuted" style={emptyTextStyle}>
+      沒有符合的項目
+    </ThemedText>
+  );
+}
 
 export function LostItemsHome() {
   const insets = useSafeAreaInsets();
@@ -72,27 +124,17 @@ export function LostItemsHome() {
 
   const renderItem = ({ item }: { item: Item }) => <LostItemCard item={item} />;
 
-  const listEmpty = isPending ? (
-    <View style={pageStyles.centerBlock}>
-      <ActivityIndicator size="large" color={c.brand} />
-      <ThemedText type="bodyMuted">載入中…</ThemedText>
-    </View>
-  ) : isError ? (
-    <View style={pageStyles.centerBlock}>
-      <ThemedText type="labelError" style={pageStyles.labelError}>
-        {error instanceof Error ? error.message : "無法載入列表"}
-      </ThemedText>
-      <PillButton
-        label="重試"
-        onPress={() => refetch()}
-        accessibilityRole="button"
-        accessibilityLabel="重試"
-      />
-    </View>
-  ) : (
-    <ThemedText type="bodyMuted" style={pageStyles.empty}>
-      沒有符合的項目
-    </ThemedText>
+  const listEmpty = (
+    <LostItemsListEmpty
+      isPending={isPending}
+      isError={isError}
+      error={error}
+      onRetry={() => refetch()}
+      brandColor={c.brand}
+      centerBlockStyle={pageStyles.centerBlock}
+      labelErrorStyle={pageStyles.labelError}
+      emptyTextStyle={pageStyles.empty}
+    />
   );
 
   return (

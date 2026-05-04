@@ -44,7 +44,7 @@ export function CategoryChipRow({ category, onCategoryChange }: Props) {
           color: c.onBrand,
         },
       }),
-    [c]
+    [c],
   );
 
   return (
@@ -59,8 +59,6 @@ export function CategoryChipRow({ category, onCategoryChange }: Props) {
               styles.chip,
               active ? styles.chipActive : styles.chipInactive,
             ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
           >
             <Text style={active ? styles.chipLabelActive : styles.chipLabel}>
               {chip.label}

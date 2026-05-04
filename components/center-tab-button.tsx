@@ -8,11 +8,7 @@ const PRIMARY = "#2563EB";
 export function CenterTabButton(props: BottomTabBarButtonProps) {
   const { style, children: _tabChildren, ...rest } = props;
   return (
-    <HapticTab
-      {...rest}
-      style={[style, styles.wrapper]}
-      accessibilityLabel="發布失物"
-    >
+    <HapticTab {...rest} style={[style, styles.wrapper]}>
       <View style={styles.fab}>
         <IconSymbol name="plus" color="#FFFFFF" size={30} />
       </View>

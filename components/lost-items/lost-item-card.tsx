@@ -1,19 +1,21 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ThemedText } from "@/components/themed-text";
 import {
   ONE_HOUR_MS,
   formatRelativeTimeZh,
   truncate,
 } from "@/components/lost-items/format";
-import type { Item } from "@/lib/api/items";
+import { ThemedText } from "@/components/themed-text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
+import type { Item } from "@/lib/api/items";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type Props = Readonly<{ item: Item }>;
 
 export function LostItemCard({ item }: Props) {
+  const router = useRouter();
   const c = useAppColors();
   const styles = useMemo(
     () =>
@@ -89,7 +91,7 @@ export function LostItemCard({ item }: Props) {
           flexShrink: 0,
         },
       }),
-    [c]
+    [c],
   );
 
   const desc = item.description ?? "";
@@ -99,53 +101,65 @@ export function LostItemCard({ item }: Props) {
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
 
   return (
-    <View style={styles.card}>
-      <Image
-        source={{ uri: item.imageUrl }}
-        style={styles.thumb}
-        contentFit="cover"
-        transition={200}
-      />
-      <View style={styles.cardBody}>
-        <View style={styles.titleRow}>
-          <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
-            {item.title}
-          </ThemedText>
-          <View
-            style={[
-              styles.badge,
-              isLost ? styles.badgeLost : styles.badgeFound,
-            ]}
-          >
-            <Text style={styles.badgeText}>
-              {isLost ? "遺失" : "尋獲"}
-            </Text>
-          </View>
-        </View>
-        <ThemedText type="bodyMuted" numberOfLines={2} style={{ marginBottom: 6 }}>
-          {desc ? truncate(desc, 72) : "（無描述）"}
-        </ThemedText>
-        <View style={styles.metaRow}>
-          <View style={styles.locRow}>
-            <IconSymbol
-              name="mappin.circle.fill"
-              size={14}
-              color={c.textMuted}
-            />
-            <ThemedText type="caption" style={styles.locText} numberOfLines={1}>
-              {loc}
+    <Pressable
+      onPress={() =>
+        router.push({ pathname: "/item/[id]", params: { id: item.id } })
+      }
+    >
+      <View style={styles.card}>
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.thumb}
+          contentFit="cover"
+          transition={200}
+        />
+        <View style={styles.cardBody}>
+          <View style={styles.titleRow}>
+            <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
+              {item.title}
             </ThemedText>
+            <View
+              style={[
+                styles.badge,
+                isLost ? styles.badgeLost : styles.badgeFound,
+              ]}
+            >
+              <Text style={styles.badgeText}>{isLost ? "遺失" : "尋獲"}</Text>
+            </View>
           </View>
-          {showTime ? (
-            <View style={styles.timeRow}>
-              <IconSymbol name="clock" size={14} color={c.textMuted} />
-              <ThemedText type="caption">
-                {formatRelativeTimeZh(item.createdAt)}
+          <ThemedText
+            type="bodyMuted"
+            numberOfLines={2}
+            style={{ marginBottom: 6 }}
+          >
+            {desc ? truncate(desc, 72) : "（無描述）"}
+          </ThemedText>
+          <View style={styles.metaRow}>
+            <View style={styles.locRow}>
+              <IconSymbol
+                name="mappin.circle.fill"
+                size={14}
+                color={c.textMuted}
+              />
+              <ThemedText
+                type="caption"
+                style={styles.locText}
+                numberOfLines={1}
+              >
+                {loc}
               </ThemedText>
             </View>
-          ) : null}
+            {showTime ? (
+              <View style={styles.timeRow}>
+                <IconSymbol name="clock" size={14} color={c.textMuted} />
+                <ThemedText type="caption">
+                  {formatRelativeTimeZh(item.createdAt)}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }

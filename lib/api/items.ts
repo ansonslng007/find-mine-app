@@ -61,6 +61,15 @@ export async function listItems(
   return data;
 }
 
+export type GetItemResponse = {
+  item: Item;
+};
+
+export async function getItem(id: string): Promise<GetItemResponse> {
+  const { data } = await apiClient.get<GetItemResponse>(`/api/v1/items/${id}`);
+  return data;
+}
+
 export async function createItem(
   input: CreateItemInput,
 ): Promise<CreateItemResponse> {

@@ -55,8 +55,6 @@ export function SearchFilterRow({ query, onQueryChange }: Props) {
       </View>
       <IconButton
         onPress={() => Alert.alert("篩選", "進階篩選將於之後版本開放。")}
-        accessibilityRole="button"
-        accessibilityLabel="篩選"
       >
         <IconSymbol name="slider.horizontal.3" size={22} color={c.onBrand} />
       </IconButton>

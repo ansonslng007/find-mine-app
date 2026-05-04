@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "findmine",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -62,6 +62,6 @@
         "projectId": "bba2ceb8-b098-4d55-b36a-4de350fe88af"
       }
     },
-    "owner": "roylung007"
+    "owner": "Anson Ng"
   }
 }

@@ -29,6 +29,8 @@ const MAPPING = {
   "shippingbox.fill": "inventory-2",
   "mappin.circle.fill": "place",
   clock: "schedule",
+  xmark: "close",
+  "tag.fill": "sell",
 } as IconMapping;
 
 /**
