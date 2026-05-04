@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 const tintColorLight = '#2563eb';
 const tintColorDark = '#fff';
 
+/** Semantic palette shared by light / dark (keys must match both modes). */
 export const Colors = {
   light: {
     text: '#11181C',
@@ -16,6 +17,20 @@ export const Colors = {
     icon: '#687076',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
+    pageBackground: '#F3F4F6',
+    cardBackground: '#FFFFFF',
+    textPrimary: '#111827',
+    textMuted: '#6B7280',
+    borderSubtle: '#E5E7EB',
+    brand: '#2563EB',
+    danger: '#B91C1C',
+    badgeLost: '#EF4444',
+    badgeFound: '#2563EB',
+    chipBackground: '#E5E7EB',
+    onBrand: '#FFFFFF',
+    placeholder: '#9CA3AF',
+    imagePlaceholder: '#E5E7EB',
+    shadow: '#000000',
   },
   dark: {
     text: '#ECEDEE',
@@ -24,6 +39,20 @@ export const Colors = {
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    pageBackground: '#0F1012',
+    cardBackground: '#1C1D1F',
+    textPrimary: '#F3F4F6',
+    textMuted: '#9CA3AF',
+    borderSubtle: '#3F3F46',
+    brand: '#3B82F6',
+    danger: '#FCA5A5',
+    badgeLost: '#EF4444',
+    badgeFound: '#60A5FA',
+    chipBackground: '#3F3F46',
+    onBrand: '#FFFFFF',
+    placeholder: '#71717A',
+    imagePlaceholder: '#3F3F46',
+    shadow: '#000000',
   },
 };
 
