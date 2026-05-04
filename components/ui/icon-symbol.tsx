@@ -37,6 +37,9 @@ const MAPPING = {
   "gearshape.fill": "settings",
   "questionmark.circle": "help-outline",
   "info.circle": "info",
+  "moon.fill": "dark-mode",
+  globe: "language",
+  "chevron.left": "chevron-left",
 } as IconMapping;
 
 /**

@@ -5,6 +5,7 @@ import {
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
 import type { Item } from "@/lib/api/items";
 import { Image } from "expo-image";
@@ -103,7 +104,7 @@ export function LostItemCard({ item }: Props) {
   return (
     <Pressable
       onPress={() =>
-        router.push({ pathname: "/item/[id]", params: { id: item.id } })
+        router.push({ pathname: ROUTE_PATH.ITEM, params: { id: item.id } })
       }
     >
       <View style={styles.card}>

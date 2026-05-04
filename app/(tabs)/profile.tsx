@@ -1,12 +1,13 @@
 import { PageLayoutWithHeader } from "@/components/layout/page-layout-with-header";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 
@@ -67,7 +68,7 @@ function ProfileCard({ title, subtitle, left, onPress }: ProfileCardProps) {
 }
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const c = useAppColors();
   const colorScheme = useColorScheme();
   const isLight = colorScheme !== "dark";
@@ -77,39 +78,6 @@ export default function ProfileScreen() {
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        page: {
-          flex: 1,
-          backgroundColor: c.pageBackground,
-        },
-        headerStrip: {
-          backgroundColor: c.cardBackground,
-          paddingHorizontal: 16,
-          paddingBottom: 16,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: c.borderSubtle,
-        },
-        headerRow: {
-          flexDirection: "row",
-          alignItems: "center",
-        },
-        headerIconWrap: {
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          backgroundColor: c.brand,
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 12,
-        },
-        headerTextCol: {
-          flex: 1,
-        },
-        scrollContent: {
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: 40,
-          gap: 12,
-        },
         largeUserIcon: {
           width: 56,
           height: 56,
@@ -149,6 +117,7 @@ export default function ProfileScreen() {
       <ProfileCard
         title="設定"
         subtitle="應用程式偏好"
+        onPress={() => router.push(ROUTE_PATH.SETTINGS)}
         left={
           <View style={styles.smallIconCircle}>
             <IconSymbol name="gearshape.fill" size={24} color={c.textPrimary} />

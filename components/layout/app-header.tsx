@@ -56,25 +56,13 @@ export function AppHeader({
     <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
       <View style={styles.headerRow}>
         <View style={styles.headerIconWrap}>
-          <IconSymbol name="shippingbox.fill" size={24} color={c.onBrand} />
+          <IconSymbol name={icon} size={24} color={c.onBrand} />
         </View>
         <View style={styles.headerTextCol}>
-          <ThemedText type="screenTitle">個人</ThemedText>
-          <ThemedText type="screenSubtitle">你的帳戶</ThemedText>
+          <ThemedText type="screenTitle">{screenTitle}</ThemedText>
+          <ThemedText type="screenSubtitle">{screenSubtitle}</ThemedText>
         </View>
       </View>
     </View>
   );
-
-  // return (
-  //   <View style={styles.header}>
-  //     <View style={styles.headerIconWrap}>
-  //       <IconSymbol name={icon} size={22} color={c.onBrand} />
-  //     </View>
-  //     <View style={styles.headerTextCol}>
-  //       <ThemedText type="screenTitle">{screenTitle}</ThemedText>
-  //       <ThemedText type="screenSubtitle">{screenSubtitle}</ThemedText>
-  //     </View>
-  //   </View>
-  // );
 }
