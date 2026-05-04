@@ -1,4 +1,3 @@
-import { AppHeader } from "@/components/layout/app-header";
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import { passesCategoryChip } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
@@ -20,6 +19,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 type LostItemsListEmptyProps = Readonly<{
   isPending: boolean;
@@ -82,11 +82,6 @@ export function LostItemsHome() {
   const pageStyles = useMemo(
     () =>
       StyleSheet.create({
-        page: {
-          flex: 1,
-          backgroundColor: c.pageBackground,
-          paddingHorizontal: 16,
-        },
         listContent: {
           gap: 12,
         },
@@ -138,12 +133,12 @@ export function LostItemsHome() {
   );
 
   return (
-    <View style={[pageStyles.page, { paddingTop: insets.top + 8 }]}>
-      <AppHeader
-        screenTitle="失物"
-        screenSubtitle="一起找回遺失物"
-        icon="shippingbox.fill"
-      />
+    <PageLayoutWithHeader
+      screenTitle="失物"
+      screenSubtitle="一起找回遺失物"
+      icon="shippingbox.fill"
+      useScrollView={false}
+    >
       <SearchFilterRow query={query} onQueryChange={setQuery} />
       <CategoryChipRow category={category} onCategoryChange={setCategory} />
 
@@ -167,6 +162,6 @@ export function LostItemsHome() {
           />
         }
       />
-    </View>
+    </PageLayoutWithHeader>
   );
 }

@@ -31,6 +31,9 @@ const MAPPING = {
   clock: "schedule",
   xmark: "close",
   "tag.fill": "sell",
+  "chevron.down": "keyboard-arrow-down",
+  calendar: "calendar-today",
+  "camera.fill": "photo-camera",
 } as IconMapping;
 
 /**
