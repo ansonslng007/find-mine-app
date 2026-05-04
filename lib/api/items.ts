@@ -38,6 +38,29 @@ export type CreateItemInput = {
   image: CreateItemImagePart;
 };
 
+export type ListItemsParams = {
+  kind?: ItemKind;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListItemsResponse = {
+  items: Item[];
+};
+
+export async function listItems(
+  params?: ListItemsParams,
+): Promise<ListItemsResponse> {
+  const { data } = await apiClient.get<ListItemsResponse>("/api/v1/items", {
+    params: {
+      kind: params?.kind,
+      limit: params?.limit,
+      offset: params?.offset,
+    },
+  });
+  return data;
+}
+
 export async function createItem(
   input: CreateItemInput,
 ): Promise<CreateItemResponse> {
