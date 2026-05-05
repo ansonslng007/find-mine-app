@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useI18n } from "@/providers/i18n-provider";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
 
@@ -116,8 +117,6 @@ export function LostItemForm() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [lastFeatureDim, setLastFeatureDim] = useState<number | null>(null);
-  const [objectHint, setObjectHint] =
-    useState("請上傳圖片後，自動填入分類類別。");
   const [locationLoading, setLocationLoading] = useState(false);
   const [placeGeometry, setPlaceGeometry] = useState<PlaceGeometry | null>(
     null,
@@ -127,7 +126,14 @@ export function LostItemForm() {
     setGooglePlacesAutocompleteComponent,
   ] = useState<React.ComponentType<any> | null>(null);
   const c = useAppColors();
+  const { t, locale } = useI18n();
   const styles = useMemo(() => createLostItemFormStyles(), []);
+
+  const [objectHint, setObjectHint] = useState("");
+
+  useEffect(() => {
+    setObjectHint(t("form.categoryHintDefault"));
+  }, [t, locale]);
 
   useEffect(() => {
     const prepareModel = async () => {
@@ -191,78 +197,92 @@ export function LostItemForm() {
     latitude: number,
     longitude: number,
   ) => {
-    // Nominatim 返回的地址格式
     const { road, house_number, neighbourhood, suburb, city, county, country } =
       address;
 
-    const locationParts = [];
+    const locationParts: string[] = [];
+    const listSep = locale === "zh-Hant" ? "，" : ", ";
 
-    // 添加街道信息
     if (road && house_number) {
-      locationParts.push(`${road}${house_number}號`);
+      locationParts.push(
+        t("address.roadWithNumber", {
+          road: String(road),
+          house_number: String(house_number),
+        }),
+      );
     } else if (road) {
-      locationParts.push(`${road}附近`);
+      locationParts.push(t("address.roadNearby", { road: String(road) }));
     } else if (name) {
       locationParts.push(name);
     }
 
-    // 添加鄰近地區
     if (neighbourhood) {
-      locationParts.push(neighbourhood);
+      locationParts.push(String(neighbourhood));
     } else if (suburb) {
-      locationParts.push(suburb);
+      locationParts.push(String(suburb));
     }
 
-    // 添加城市信息
     if (city) {
-      locationParts.push(city);
+      locationParts.push(String(city));
     } else if (county) {
-      locationParts.push(county);
+      locationParts.push(String(county));
     }
 
-    // 如果沒有詳細地址，嘗試創建有趣的描述
     if (locationParts.length === 0) {
       const latDesc =
-        latitude > 25.0 ? "北部" : latitude > 23.5 ? "中部" : "南部";
+        latitude > 25.0
+          ? t("address.north")
+          : latitude > 23.5
+            ? t("address.centralLat")
+            : t("address.south");
       const lonDesc =
-        longitude > 121.0 ? "東部" : longitude > 120.5 ? "西部" : "中部";
+        longitude > 121.0
+          ? t("address.east")
+          : longitude > 120.5
+            ? t("address.west")
+            : t("address.centralLon");
 
       if (country) {
-        return `📍 ${country}境內 (${latDesc}${lonDesc})`;
-      } else {
-        return `📍 神秘地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+        return t("address.inCountry", {
+          country: String(country),
+          latDesc,
+          lonDesc,
+        });
       }
+      return t("address.mystery", {
+        lat: latitude.toFixed(4),
+        lng: longitude.toFixed(4),
+      });
     }
 
-    // 組合地址並添加表情符號
-    const fullAddress = locationParts.join("，");
-    return `${fullAddress}`;
+    return locationParts.join(listSep);
   };
 
   const getCategoryDescription = (className: string) => {
     const key = className.toLowerCase();
-    const descriptions: Record<string, string> = {
-      dog: "這看起來像一隻狗，適合填入「寵物/動物」類別。",
-      cat: "這看起來像一隻貓，建議歸類為「寵物/動物」。",
-      person: "這是一名人，請檢查是否為身分證件或人物照片。",
-      car: "這是一輛車，建議歸類為「交通工具」。",
-      truck: "這是一輛卡車，適合歸入「交通工具」。",
-      boat: "這是一艘船，建議歸類為「交通工具」。",
-      bicycle: "這是一部腳踏車，適合分類為「交通工具」。",
-      airplane: "這是一架飛機，可歸為「交通工具」。",
-      banana: "這是一根香蕉，適合歸類為「食品/日用品」。",
-      pizza: "這是一份披薩，建議歸類為「食品」。",
-      apple: "這是一個蘋果，適合歸類為「食品」。",
-      cup: "這是一個杯子，建議分類為「日用品」。",
-    };
-
-    for (const [match, descriptionText] of Object.entries(descriptions)) {
+    const keys = [
+      "dog",
+      "cat",
+      "person",
+      "car",
+      "truck",
+      "boat",
+      "bicycle",
+      "airplane",
+      "banana",
+      "pizza",
+      "apple",
+      "cup",
+    ] as const;
+    for (const match of keys) {
       if (key.includes(match)) {
-        return descriptionText;
+        return t(`mlHint.${match}`);
       }
     }
 
-    return `模型辨識為「${normalizeClassName(className)}」，請確認是否填入此類別。`;
+    return t("mlHint.generic", {
+      className: normalizeClassName(className),
+    });
   };
 
   const classifyImage = async (uri: string) => {
@@ -301,7 +321,7 @@ export function LostItemForm() {
       }
     } catch (error) {
       console.error("Classification error", error);
-      setObjectHint("分類失敗，請確認為 JPEG/PNG 等常見格式後再試。");
+      setObjectHint(t("form.classifyFail"));
       setLastFeatureDim(null);
       setFeatureVector(null);
     } finally {
@@ -312,7 +332,7 @@ export function LostItemForm() {
   const handlePickFromLibrary = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("權限不足", "需要相簿權限才能選擇圖片。");
+      Alert.alert(t("form.permGalleryTitle"), t("form.permGalleryBody"));
       return;
     }
 
@@ -336,7 +356,7 @@ export function LostItemForm() {
   const handleTakePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert("權限不足", "需要相機權限才能拍照。");
+      Alert.alert(t("form.permCameraTitle"), t("form.permCameraBody"));
       return;
     }
 
@@ -362,22 +382,19 @@ export function LostItemForm() {
     setSubmitError("");
 
     if (!modelLoaded) {
-      Alert.alert("無法送出", "模型尚未載入完成，請稍候。");
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.modelNotReady"));
       return;
     }
     if (!imageUri) {
-      Alert.alert("無法送出", "請先拍照或從相簿選擇物品圖片。");
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.needImage"));
       return;
     }
     if (!title.trim()) {
-      Alert.alert("無法送出", "請填寫「標題 / 物品名稱」。");
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.needTitle"));
       return;
     }
     if (featureVector?.length !== EMBEDDING_DIM) {
-      Alert.alert(
-        "無法送出",
-        "尚未取得有效的圖片嵌入向量，請確認已上傳圖片且辨識完成。",
-      );
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.needEmbedding"));
       return;
     }
 
@@ -401,7 +418,14 @@ export function LostItemForm() {
     createItemMutation.mutate(formData, {
       onSuccess: (data) => {
         setSubmitMessage(
-          `已同步到伺服器（${kind === "lost" ? "遺失" : "尋獲"}）。項目 id：${data.item.id}（時間 ${time || "未填"}, 地點 ${location || "未填"}, 類別 ${category || "未填"}）`,
+          t("form.submitSuccess", {
+            kind:
+              kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
+            id: data.item.id,
+            time: time.trim() || t("common.notProvided"),
+            location: location.trim() || t("common.notProvided"),
+            category: category.trim() || t("common.notProvided"),
+          }),
         );
       },
       onError: (e) => {
@@ -431,7 +455,7 @@ export function LostItemForm() {
     try {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
-        Alert.alert("權限不足", "需要位置權限才能獲取當前位置。");
+        Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
         return;
       }
 
@@ -470,7 +494,10 @@ export function LostItemForm() {
           setLocation(readableAddress);
         } else {
           setLocation(
-            `📍 未知地點 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            t("address.unknownPin", {
+              lat: latitude.toFixed(4),
+              lng: longitude.toFixed(4),
+            }),
           );
         }
         setPlaceGeometry({
@@ -479,7 +506,10 @@ export function LostItemForm() {
       } catch (error) {
         console.error("Reverse geocoding error:", error);
         setLocation(
-          `📍 位置座標 (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+          t("address.coordsPin", {
+            lat: latitude.toFixed(4),
+            lng: longitude.toFixed(4),
+          }),
         );
         setPlaceGeometry({
           location: { lat: latitude, lng: longitude },
@@ -487,7 +517,7 @@ export function LostItemForm() {
       }
     } catch (error) {
       console.error("Get location error:", error);
-      Alert.alert("獲取位置失敗", "請檢查位置權限或網路連接。");
+      Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
     } finally {
       setLocationLoading(false);
     }
@@ -517,14 +547,16 @@ export function LostItemForm() {
     }
   };
 
-  const titleLabel = kind === "lost" ? "遺失了什麼？" : "拾獲了什麼？";
-  const timeLabel = kind === "lost" ? "遺失時間" : "發現時間";
-  const locationLabel = kind === "lost" ? "遺失地點" : "拾獲地點";
+  const titleLabel =
+    kind === "lost" ? t("form.titleLost") : t("form.titleFound");
+  const timeLabel = kind === "lost" ? t("form.timeLost") : t("form.timeFound");
+  const locationLabel =
+    kind === "lost" ? t("form.locationLost") : t("form.locationFound");
 
   return (
     <PageLayoutWithHeader
-      screenTitle="失物建立表單"
-      screenSubtitle="一起找回遺失物"
+      screenTitle={t("form.screenTitle")}
+      screenSubtitle={t("form.screenSubtitle")}
       icon="shippingbox.fill"
     >
       <View style={[styles.segmentWrap, { backgroundColor: c.chipBackground }]}>
@@ -543,7 +575,7 @@ export function LostItemForm() {
                 : [styles.segmentLabelMuted, { color: c.textMuted }]
             }
           >
-            我遺失了物品
+            {t("form.segmentLost")}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -561,7 +593,7 @@ export function LostItemForm() {
                 : [styles.segmentLabelMuted, { color: c.textMuted }]
             }
           >
-            我撿到物品
+            {t("form.segmentFound")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -582,7 +614,7 @@ export function LostItemForm() {
               borderColor: c.borderSubtle,
             },
           ]}
-          placeholder="例如：黑色後背包"
+          placeholder={t("form.titlePlaceholder")}
           placeholderTextColor={c.placeholder}
           value={title}
           onChangeText={setTitle}
@@ -607,7 +639,7 @@ export function LostItemForm() {
         >
           <TextInput
             style={[styles.inputBare, { color: c.textPrimary }]}
-            placeholder="例如：2026-04-30 14:30"
+            placeholder={t("form.timePlaceholder")}
             placeholderTextColor={c.placeholder}
             value={time}
             onChangeText={setTime}
@@ -643,7 +675,7 @@ export function LostItemForm() {
                 { color: c.onBrand },
               ]}
             >
-              使用目前位置（GPS）
+              {t("form.useGps")}
             </Text>
           )}
         </TouchableOpacity>
@@ -659,7 +691,7 @@ export function LostItemForm() {
         >
           {GooglePlacesAutocompleteComponent ? (
             <GooglePlacesAutocompleteComponent
-              placeholder="搜尋香港地址或地點"
+              placeholder={t("form.placesPlaceholder")}
               onPress={handlePlacesSelect}
               fetchDetails
               debounce={300}
@@ -671,7 +703,7 @@ export function LostItemForm() {
               }}
               query={{
                 key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-                language: "zh-HK",
+                language: locale === "zh-Hant" ? "zh-HK" : "en",
                 components: "country:hk",
               }}
               onFail={(error: any) => {
@@ -741,14 +773,17 @@ export function LostItemForm() {
             <ThemedText
               style={[styles.locationInfoText, { color: c.textPrimary }]}
             >
-              已選擇：{location}
+              {t("form.selectedPrefix")}
+              {location}
             </ThemedText>
             {placeGeometry ? (
               <ThemedText
                 style={[styles.locationGeometryText, { color: c.textMuted }]}
               >
-                座標：緯度 {placeGeometry.location.lat.toFixed(6)}、經度{" "}
-                {placeGeometry.location.lng.toFixed(6)}
+                {t("form.coordsLine", {
+                  lat: placeGeometry.location.lat.toFixed(6),
+                  lng: placeGeometry.location.lng.toFixed(6),
+                })}
               </ThemedText>
             ) : null}
           </View>
@@ -757,7 +792,9 @@ export function LostItemForm() {
 
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
-          <Text style={[styles.labelText, { color: c.textPrimary }]}>類別</Text>
+          <Text style={[styles.labelText, { color: c.textPrimary }]}>
+            {t("form.categoryLabel")}
+          </Text>
           <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
         <View
@@ -771,7 +808,7 @@ export function LostItemForm() {
         >
           <TextInput
             style={[styles.inputBare, { color: c.textPrimary }]}
-            placeholder="上傳圖片後會自動填入，亦可手動修改"
+            placeholder={t("form.categoryPlaceholder")}
             placeholderTextColor={c.placeholder}
             value={category}
             onChangeText={setCategory}
@@ -785,7 +822,7 @@ export function LostItemForm() {
 
       <View style={styles.formGroup}>
         <Text style={[styles.labelText, { color: c.textPrimary }]}>
-          補充說明
+          {t("form.notesLabel")}
         </Text>
         <TextInput
           style={[
@@ -797,7 +834,7 @@ export function LostItemForm() {
               borderColor: c.borderSubtle,
             },
           ]}
-          placeholder="例如：黑色背包內有筆電、護照。"
+          placeholder={t("form.notesPlaceholder")}
           placeholderTextColor={c.placeholder}
           value={description}
           onChangeText={setDescription}
@@ -810,7 +847,7 @@ export function LostItemForm() {
         <View style={styles.labelRow}>
           <IconSymbol name="camera.fill" size={18} color={c.textMuted} />
           <Text style={[styles.labelText, { color: c.textPrimary }]}>
-            物品照片
+            {t("form.photoLabel")}
           </Text>
           <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
@@ -825,7 +862,7 @@ export function LostItemForm() {
             disabled={!modelLoaded || loading}
           >
             <Text style={[styles.pickImageButtonText, { color: c.onBrand }]}>
-              {modelLoaded ? "立即拍照" : "模型載入中…"}
+              {modelLoaded ? t("form.takePhoto") : t("form.modelLoading")}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -840,7 +877,7 @@ export function LostItemForm() {
             <Text
               style={[styles.pickImageButtonOutlineText, { color: c.brand }]}
             >
-              從相簿選擇
+              {t("form.pickLibrary")}
             </Text>
           </TouchableOpacity>
           {loading ? (
@@ -885,7 +922,7 @@ export function LostItemForm() {
             type="subtitle"
             style={[styles.predictionTitle, { color: c.textPrimary }]}
           >
-            模型辨識結果
+            {t("form.predictionsTitle")}
           </ThemedText>
           {predictions.map((item, index) => (
             <View key={index} style={styles.predictionItem}>
@@ -903,8 +940,7 @@ export function LostItemForm() {
           ))}
           {lastFeatureDim != null ? (
             <ThemedText style={[styles.dbHint, { color: c.textMuted }]}>
-              特徵向量維度：{lastFeatureDim}（MobileNet
-              嵌入，建立失物時會一併上傳至伺服器）
+              {t("form.embeddingHint", { dim: String(lastFeatureDim) })}
             </ThemedText>
           ) : null}
         </View>
@@ -923,7 +959,7 @@ export function LostItemForm() {
           <ActivityIndicator color={c.onBrand} />
         ) : (
           <Text style={[styles.submitButtonText, { color: c.onBrand }]}>
-            {kind === "lost" ? "送出遺失通報" : "送出尋獲通報"}
+            {kind === "lost" ? t("form.submitLost") : t("form.submitFound")}
           </Text>
         )}
       </TouchableOpacity>

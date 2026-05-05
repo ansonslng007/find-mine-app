@@ -1,5 +1,8 @@
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
-import { passesCategoryChip } from "@/components/lost-items/format";
+import {
+  passesCategoryChip,
+  type TranslateFn,
+} from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
 import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
@@ -8,6 +11,7 @@ import { type LostItemCategoryId } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useLostItemsList } from "@/hooks/use-items";
 import type { Item } from "@/lib/api/items";
+import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +34,7 @@ type LostItemsListEmptyProps = Readonly<{
   centerBlockStyle: ViewStyle;
   labelErrorStyle: TextStyle;
   emptyTextStyle: TextStyle;
+  t: TranslateFn;
 }>;
 
 function LostItemsListEmpty({
@@ -41,14 +46,16 @@ function LostItemsListEmpty({
   centerBlockStyle,
   labelErrorStyle,
   emptyTextStyle,
+  t,
 }: LostItemsListEmptyProps) {
-  const errorMessage = error instanceof Error ? error.message : "無法載入列表";
+  const errorMessage =
+    error instanceof Error ? error.message : t("common.loadListFailed");
 
   if (isPending) {
     return (
       <View style={centerBlockStyle}>
         <ActivityIndicator size="large" color={brandColor} />
-        <ThemedText type="bodyMuted">載入中…</ThemedText>
+        <ThemedText type="bodyMuted">{t("home.loading")}</ThemedText>
       </View>
     );
   }
@@ -59,14 +66,14 @@ function LostItemsListEmpty({
         <ThemedText type="labelError" style={labelErrorStyle}>
           {errorMessage}
         </ThemedText>
-        <PillButton label="重試" onPress={onRetry} />
+        <PillButton label={t("common.retry")} onPress={onRetry} />
       </View>
     );
   }
 
   return (
     <ThemedText type="bodyMuted" style={emptyTextStyle}>
-      沒有符合的項目
+      {t("home.empty")}
     </ThemedText>
   );
 }
@@ -74,6 +81,7 @@ function LostItemsListEmpty({
 export function LostItemsHome() {
   const insets = useSafeAreaInsets();
   const c = useAppColors();
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<LostItemCategoryId>("all");
   const { data, isPending, isError, error, refetch, isRefetching } =
@@ -129,13 +137,14 @@ export function LostItemsHome() {
       centerBlockStyle={pageStyles.centerBlock}
       labelErrorStyle={pageStyles.labelError}
       emptyTextStyle={pageStyles.empty}
+      t={t}
     />
   );
 
   return (
     <PageLayoutWithHeader
-      screenTitle="失物"
-      screenSubtitle="一起找回遺失物"
+      screenTitle={t("home.title")}
+      screenSubtitle={t("home.subtitle")}
       icon="shippingbox.fill"
       useScrollView={false}
     >

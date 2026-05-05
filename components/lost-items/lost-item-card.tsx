@@ -1,12 +1,13 @@
 import {
   ONE_HOUR_MS,
-  formatRelativeTimeZh,
+  formatRelativeTime,
   truncate,
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
+import { useI18n } from "@/providers/i18n-provider";
 import type { Item } from "@/lib/api/items";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -18,6 +19,7 @@ type Props = Readonly<{ item: Item }>;
 export function LostItemCard({ item }: Props) {
   const router = useRouter();
   const c = useAppColors();
+  const { t, locale } = useI18n();
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -96,7 +98,7 @@ export function LostItemCard({ item }: Props) {
   );
 
   const desc = item.description ?? "";
-  const loc = item.locationText ?? "未填地點";
+  const loc = item.locationText ?? t("common.unknownLocation");
   const isLost = item.kind === "lost";
   const showTime =
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
@@ -125,7 +127,9 @@ export function LostItemCard({ item }: Props) {
                 isLost ? styles.badgeLost : styles.badgeFound,
               ]}
             >
-              <Text style={styles.badgeText}>{isLost ? "遺失" : "尋獲"}</Text>
+              <Text style={styles.badgeText}>
+                {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+              </Text>
             </View>
           </View>
           <ThemedText
@@ -133,7 +137,7 @@ export function LostItemCard({ item }: Props) {
             numberOfLines={2}
             style={{ marginBottom: 6 }}
           >
-            {desc ? truncate(desc, 72) : "（無描述）"}
+            {desc ? truncate(desc, 72) : t("common.noDescription")}
           </ThemedText>
           <View style={styles.metaRow}>
             <View style={styles.locRow}>
@@ -154,7 +158,7 @@ export function LostItemCard({ item }: Props) {
               <View style={styles.timeRow}>
                 <IconSymbol name="clock" size={14} color={c.textMuted} />
                 <ThemedText type="caption">
-                  {formatRelativeTimeZh(item.createdAt)}
+                  {formatRelativeTime(item.createdAt, t, locale)}
                 </ThemedText>
               </View>
             ) : null}

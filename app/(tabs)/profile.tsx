@@ -4,6 +4,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useI18n } from "@/providers/i18n-provider";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
@@ -70,6 +71,7 @@ function ProfileCard({ title, subtitle, left, onPress }: ProfileCardProps) {
 export default function ProfileScreen() {
   const router = useRouter();
   const c = useAppColors();
+  const { t } = useI18n();
   const colorScheme = useColorScheme();
   const isLight = colorScheme !== "dark";
   const userIconCircleBg = isLight ? "#DBEAFE" : "#1E3A5F";
@@ -95,18 +97,18 @@ export default function ProfileScreen() {
           justifyContent: "center",
         },
       }),
-    [c, userIconCircleBg, smallIconCircleBg],
+    [userIconCircleBg, smallIconCircleBg],
   );
 
   return (
     <PageLayoutWithHeader
-      screenTitle="個人"
-      screenSubtitle="你的帳戶"
+      screenTitle={t("profile.title")}
+      screenSubtitle={t("profile.subtitle")}
       icon="shippingbox.fill"
     >
       <ProfileCard
-        title="訪客"
-        subtitle="登入以追蹤你的通報"
+        title={t("profile.guestTitle")}
+        subtitle={t("profile.guestSubtitle")}
         left={
           <View style={styles.largeUserIcon}>
             <IconSymbol name="person.fill" size={28} color={c.brand} />
@@ -115,8 +117,8 @@ export default function ProfileScreen() {
       />
 
       <ProfileCard
-        title="設定"
-        subtitle="應用程式偏好"
+        title={t("profile.settingsTitle")}
+        subtitle={t("profile.settingsSubtitle")}
         onPress={() => router.push(ROUTE_PATH.SETTINGS)}
         left={
           <View style={styles.smallIconCircle}>
@@ -126,8 +128,8 @@ export default function ProfileScreen() {
       />
 
       <ProfileCard
-        title="說明與支援"
-        subtitle="常見問題與聯絡方式"
+        title={t("profile.helpTitle")}
+        subtitle={t("profile.helpSubtitle")}
         left={
           <View style={styles.smallIconCircle}>
             <IconSymbol
@@ -140,8 +142,8 @@ export default function ProfileScreen() {
       />
 
       <ProfileCard
-        title="關於"
-        subtitle={`版本 ${APP_VERSION}`}
+        title={t("profile.aboutTitle")}
+        subtitle={t("profile.aboutVersion", { version: APP_VERSION })}
         left={
           <View style={styles.smallIconCircle}>
             <IconSymbol name="info.circle" size={24} color={c.textPrimary} />

@@ -3,9 +3,10 @@ import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useColorSchemePreference } from "@/providers/color-scheme-preference-provider";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useI18n } from "@/providers/i18n-provider";
+import type { AppLocale } from "@/lib/i18n/types";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   Alert,
   Pressable,
@@ -14,47 +15,36 @@ import {
   View,
 } from "react-native";
 
-const LANGUAGE_STORAGE_KEY = "@app_language";
-
-type AppLanguage = "zh-Hant" | "en";
-
-const LANGUAGE_LABELS: Record<AppLanguage, string> = {
-  "zh-Hant": "繁體中文",
-  en: "English",
-};
+function languagePreferenceLabel(
+  pref: AppLocale,
+  t: (k: string) => string,
+): string {
+  if (pref === "zh-Hant") {
+    return t("settings.langZhHant");
+  }
+  return t("settings.langEn");
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
   const c = useAppColors();
-  const { effectiveScheme, setPreference } = useColorSchemePreference();
-  const [language, setLanguage] = useState<AppLanguage>("zh-Hant");
-
-  useEffect(() => {
-    void AsyncStorage.getItem(LANGUAGE_STORAGE_KEY).then((v) => {
-      if (v === "zh-Hant" || v === "en") {
-        setLanguage(v);
-      }
-    });
-  }, []);
-
-  const persistLanguage = useCallback((next: AppLanguage) => {
-    setLanguage(next);
-    void AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, next);
-  }, []);
+  const { t, preference, setPreference: setLanguagePreference } = useI18n();
+  const { effectiveScheme, setPreference: setThemePreference } =
+    useColorSchemePreference();
 
   const openLanguagePicker = useCallback(() => {
-    Alert.alert("選擇語言", undefined, [
+    Alert.alert(t("settings.languagePickTitle"), undefined, [
       {
-        text: LANGUAGE_LABELS["zh-Hant"],
-        onPress: () => persistLanguage("zh-Hant"),
+        text: t("settings.langZhHant"),
+        onPress: () => setLanguagePreference("zh-Hant"),
       },
       {
-        text: LANGUAGE_LABELS.en,
-        onPress: () => persistLanguage("en"),
+        text: t("settings.langEn"),
+        onPress: () => setLanguagePreference("en"),
       },
-      { text: "取消", style: "cancel" },
+      { text: t("common.cancel"), style: "cancel" },
     ]);
-  }, [persistLanguage]);
+  }, [setLanguagePreference, t]);
 
   const isDarkMode = effectiveScheme === "dark";
 
@@ -127,8 +117,8 @@ export default function SettingsScreen() {
 
   return (
     <PageLayoutWithHeader
-      screenTitle="設定"
-      screenSubtitle="應用程式偏好"
+      screenTitle={t("settings.title")}
+      screenSubtitle={t("settings.subtitle")}
       icon="shippingbox.fill"
     >
       <Pressable
@@ -136,11 +126,13 @@ export default function SettingsScreen() {
         style={({ pressed }) => [styles.backRow, pressed && { opacity: 0.75 }]}
       >
         <IconSymbol name="chevron.left" size={22} color={c.brand} />
-        <ThemedText style={[styles.backLabel, { marginLeft: 4 }]}>返回</ThemedText>
+        <ThemedText style={[styles.backLabel, { marginLeft: 4 }]}>
+          {t("settings.back")}
+        </ThemedText>
       </Pressable>
 
       <ThemedText type="caption" style={styles.sectionLabel}>
-        外觀
+        {t("settings.appearance")}
       </ThemedText>
 
       <View style={styles.card}>
@@ -149,14 +141,14 @@ export default function SettingsScreen() {
             <IconSymbol name="moon.fill" size={22} color={c.onBrand} />
           </View>
           <View style={styles.textCol}>
-            <ThemedText type="cardTitle">深色模式</ThemedText>
+            <ThemedText type="cardTitle">{t("settings.darkMode")}</ThemedText>
             <ThemedText type="bodyMuted" style={styles.rowSubtitle}>
-              使用深色主題
+              {t("settings.darkModeHint")}
             </ThemedText>
           </View>
           <Switch
             value={isDarkMode}
-            onValueChange={(on) => setPreference(on ? "dark" : "light")}
+            onValueChange={(on) => setThemePreference(on ? "dark" : "light")}
             trackColor={{ false: c.chipBackground, true: c.brand }}
             thumbColor={c.cardBackground}
           />
@@ -172,9 +164,9 @@ export default function SettingsScreen() {
             <IconSymbol name="globe" size={22} color="#FFFFFF" />
           </View>
           <View style={styles.textCol}>
-            <ThemedText type="cardTitle">語言</ThemedText>
+            <ThemedText type="cardTitle">{t("settings.language")}</ThemedText>
             <ThemedText type="bodyMuted" style={styles.rowSubtitle}>
-              {LANGUAGE_LABELS[language]}
+              {languagePreferenceLabel(preference, t)}
             </ThemedText>
           </View>
           <IconSymbol name="chevron.right" size={22} color={c.textMuted} />

@@ -1,11 +1,12 @@
 import {
-  formatRelativeTimeZh,
-  inferDisplayCategory,
+  formatRelativeTime,
+  inferItemCategoryId,
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useItem } from "@/hooks/use-items";
+import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
@@ -24,6 +25,7 @@ export function ItemDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const c = useAppColors();
+  const { t, locale } = useI18n();
   const { data, isPending, isError, error, refetch } = useItem(id);
 
   const styles = useMemo(
@@ -146,10 +148,10 @@ export function ItemDetailScreen() {
   if (!id) {
     return (
       <View style={[styles.root, styles.center]}>
-        <ThemedText type="labelError">缺少物品 ID</ThemedText>
+        <ThemedText type="labelError">{t("detail.missingId")}</ThemedText>
         <Pressable onPress={() => router.back()}>
           <ThemedText type="body" style={{ color: c.brand }}>
-            返回
+            {t("detail.back")}
           </ThemedText>
         </Pressable>
       </View>
@@ -160,7 +162,7 @@ export function ItemDetailScreen() {
     return (
       <View style={[styles.root, styles.center]}>
         <ActivityIndicator size="large" color={c.brand} />
-        <ThemedText type="bodyMuted">載入中…</ThemedText>
+        <ThemedText type="bodyMuted">{t("detail.loading")}</ThemedText>
       </View>
     );
   }
@@ -169,7 +171,7 @@ export function ItemDetailScreen() {
     return (
       <View style={[styles.root, styles.center]}>
         <ThemedText type="labelError" style={{ textAlign: "center" }}>
-          {error instanceof Error ? error.message : "無法載入物品"}
+          {error instanceof Error ? error.message : t("detail.loadFailed")}
         </ThemedText>
         <Pressable
           onPress={() => refetch()}
@@ -180,17 +182,20 @@ export function ItemDetailScreen() {
             backgroundColor: c.brand,
           }}
         >
-          <Text style={{ color: c.onBrand, fontWeight: "600" }}>重試</Text>
+          <Text style={{ color: c.onBrand, fontWeight: "600" }}>
+            {t("detail.retry")}
+          </Text>
         </Pressable>
         <Pressable onPress={() => router.back()}>
-          <ThemedText type="bodyMuted">返回</ThemedText>
+          <ThemedText type="bodyMuted">{t("detail.back")}</ThemedText>
         </Pressable>
       </View>
     );
   }
 
   const isLost = item.kind === "lost";
-  const categoryLabel = inferDisplayCategory(item);
+  const categoryId = inferItemCategoryId(item);
+  const categoryLabel = t(`categories.${categoryId}`);
   const description = item.description?.trim() ?? "";
   const location = item.locationText?.trim() ?? "";
 
@@ -199,12 +204,14 @@ export function ItemDetailScreen() {
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
         <Pressable onPress={() => router.back()} style={styles.closeRow}>
           <IconSymbol name="xmark" size={22} color={c.brand} />
-          <Text style={styles.closeLabel}>關閉</Text>
+          <Text style={styles.closeLabel}>{t("detail.close")}</Text>
         </Pressable>
         <View
           style={[styles.badge, !isLost && { backgroundColor: c.badgeFound }]}
         >
-          <Text style={styles.badgeText}>{isLost ? "遺失" : "尋獲"}</Text>
+          <Text style={styles.badgeText}>
+            {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+          </Text>
         </View>
       </View>
 
@@ -233,24 +240,28 @@ export function ItemDetailScreen() {
             <View style={styles.metaItem}>
               <IconSymbol name="clock" size={18} color={c.textMuted} />
               <Text style={styles.metaText}>
-                {formatRelativeTimeZh(item.createdAt)}
+                {formatRelativeTime(item.createdAt, t, locale)}
               </Text>
             </View>
           </View>
 
           <ThemedText type="screenTitle" style={styles.sectionTitle}>
-            描述
+            {t("detail.description")}
           </ThemedText>
           <ThemedText type="body" style={styles.sectionBody}>
-            {description || "（無描述）"}
+            {description || t("common.noDescription")}
           </ThemedText>
 
           <View style={styles.locationCard}>
             <View style={styles.locationHeader}>
               <IconSymbol name="mappin.circle.fill" size={22} color={c.brand} />
-              <Text style={styles.locationTitle}>地點</Text>
+              <Text style={styles.locationTitle}>
+                {t("detail.locationSection")}
+              </Text>
             </View>
-            <Text style={styles.locationBody}>{location || "未填地點"}</Text>
+            <Text style={styles.locationBody}>
+              {location || t("common.unknownLocation")}
+            </Text>
           </View>
         </View>
       </ScrollView>

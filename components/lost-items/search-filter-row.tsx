@@ -1,6 +1,7 @@
 import { IconButton } from "@/components/ui/icon-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
+import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo } from "react";
 import { Alert, StyleSheet, TextInput, View } from "react-native";
 
@@ -11,6 +12,7 @@ type Props = {
 
 export function SearchFilterRow({ query, onQueryChange }: Props) {
   const c = useAppColors();
+  const { t } = useI18n();
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -46,7 +48,7 @@ export function SearchFilterRow({ query, onQueryChange }: Props) {
         <IconSymbol name="magnifyingglass" size={20} color={c.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="搜尋物品…"
+          placeholder={t("home.searchPlaceholder")}
           placeholderTextColor={c.placeholder}
           value={query}
           onChangeText={onQueryChange}
@@ -54,7 +56,9 @@ export function SearchFilterRow({ query, onQueryChange }: Props) {
         />
       </View>
       <IconButton
-        onPress={() => Alert.alert("篩選", "進階篩選將於之後版本開放。")}
+        onPress={() =>
+          Alert.alert(t("search.filterTitle"), t("search.filterBody"))
+        }
       >
         <IconSymbol name="slider.horizontal.3" size={22} color={c.onBrand} />
       </IconButton>

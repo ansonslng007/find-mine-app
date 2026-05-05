@@ -1,14 +1,15 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useI18n } from "@/providers/i18n-provider";
 import { StyleSheet } from "react-native";
 
 export default function FoundScreen() {
+  const { t } = useI18n();
+
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">尋獲</ThemedText>
-      <ThemedText style={styles.body}>
-        尋獲物列表將於之後版本提供。
-      </ThemedText>
+      <ThemedText type="title">{t("found.title")}</ThemedText>
+      <ThemedText style={styles.body}>{t("found.body")}</ThemedText>
     </ThemedView>
   );
 }

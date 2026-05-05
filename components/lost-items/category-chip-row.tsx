@@ -1,8 +1,9 @@
 import {
-  LOST_ITEM_CATEGORY_CHIPS,
+  LOST_ITEM_CATEGORY_IDS,
   type LostItemCategoryId,
 } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
+import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -13,6 +14,7 @@ type Props = {
 
 export function CategoryChipRow({ category, onCategoryChange }: Props) {
   const c = useAppColors();
+  const { t } = useI18n();
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -49,19 +51,20 @@ export function CategoryChipRow({ category, onCategoryChange }: Props) {
 
   return (
     <View style={styles.chipsWrap}>
-      {LOST_ITEM_CATEGORY_CHIPS.map((chip) => {
-        const active = category === chip.id;
+      {LOST_ITEM_CATEGORY_IDS.map((id) => {
+        const active = category === id;
+        const label = t(`categories.${id}`);
         return (
           <Pressable
-            key={chip.id}
-            onPress={() => onCategoryChange(chip.id)}
+            key={id}
+            onPress={() => onCategoryChange(id)}
             style={[
               styles.chip,
               active ? styles.chipActive : styles.chipInactive,
             ]}
           >
             <Text style={active ? styles.chipLabelActive : styles.chipLabel}>
-              {chip.label}
+              {label}
             </Text>
           </Pressable>
         );

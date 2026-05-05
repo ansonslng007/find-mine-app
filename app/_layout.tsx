@@ -9,6 +9,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ColorSchemePreferenceProvider } from "@/providers/color-scheme-preference-provider";
+import { I18nProvider } from "@/providers/i18n-provider";
 import { AppQueryProvider } from "@/providers/query-client-provider";
 
 export const unstable_settings = {
@@ -20,34 +21,36 @@ export default function RootLayout() {
   return (
     <ColorSchemePreferenceProvider>
       <AppQueryProvider>
-        <ThemeProvider
-          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-        >
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="item/[id]"
-              options={{
-                headerShown: false,
-                presentation: "card",
-                animation: "slide_from_right",
-              }}
-            />
-            <Stack.Screen
-              name="settings"
-              options={{
-                headerShown: false,
-                presentation: "card",
-                animation: "slide_from_right",
-              }}
-            />
-            <Stack.Screen
-              name="modal"
-              options={{ presentation: "modal", title: "Modal" }}
-            />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
+        <I18nProvider>
+          <ThemeProvider
+            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+          >
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="item/[id]"
+                options={{
+                  headerShown: false,
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
+              />
+              <Stack.Screen
+                name="settings"
+                options={{
+                  headerShown: false,
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
+              />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: "modal", title: "Modal" }}
+              />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </I18nProvider>
       </AppQueryProvider>
     </ColorSchemePreferenceProvider>
   );

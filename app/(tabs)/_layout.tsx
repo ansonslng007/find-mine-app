@@ -7,10 +7,12 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useI18n } from "@/providers/i18n-provider";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
+  const { t } = useI18n();
 
   return (
     <Tabs
@@ -28,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "失物",
+          title: t("tabs.lost"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="magnifyingglass" color={color} />
           ),
@@ -37,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="found"
         options={{
-          title: "尋獲",
+          title: t("tabs.found"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="map" color={color} />
           ),
@@ -46,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="post"
         options={{
-          title: "發布",
+          title: t("tabs.post"),
           tabBarShowLabel: false,
           tabBarIcon: () => null,
           tabBarButton: (props) => <CenterTabButton {...props} />,
@@ -55,7 +57,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "個人",
+          title: t("tabs.profile"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="person.fill" color={color} />
           ),
