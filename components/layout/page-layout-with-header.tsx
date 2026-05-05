@@ -1,7 +1,6 @@
 import { useAppColors } from "@/hooks/use-app-colors";
 import React, { ComponentProps, useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconSymbol } from "../ui/icon-symbol";
 import { AppHeader } from "./app-header";
 
@@ -20,7 +19,6 @@ export function PageLayoutWithHeader({
   icon,
   useScrollView = true,
 }: PageLayoutWithHeaderProps) {
-  const insets = useSafeAreaInsets();
   const c = useAppColors();
 
   const pageStyles = useMemo(
@@ -33,7 +31,7 @@ export function PageLayoutWithHeader({
         content: {
           paddingHorizontal: 16,
           paddingTop: 16,
-          paddingBottom: 40,
+          paddingBottom: 150,
         },
         scrollContent: {
           gap: 12,

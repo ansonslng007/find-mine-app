@@ -3,14 +3,19 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo } from "react";
-import { Alert, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 
-type Props = {
+type Props = Readonly<{
   query: string;
   onQueryChange: (q: string) => void;
-};
+  onPressSearchByImage: () => void;
+}>;
 
-export function SearchFilterRow({ query, onQueryChange }: Props) {
+export function SearchFilterRow({
+  query,
+  onQueryChange,
+  onPressSearchByImage,
+}: Props) {
   const c = useAppColors();
   const { t } = useI18n();
   const styles = useMemo(
@@ -38,6 +43,16 @@ export function SearchFilterRow({ query, onQueryChange }: Props) {
           color: c.textPrimary,
           padding: 0,
         },
+        cameraFab: {
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: c.chipBackground,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.borderSubtle,
+        },
       }),
     [c],
   );
@@ -55,6 +70,9 @@ export function SearchFilterRow({ query, onQueryChange }: Props) {
           returnKeyType="search"
         />
       </View>
+      <Pressable style={styles.cameraFab} onPress={onPressSearchByImage}>
+        <IconSymbol name="camera.fill" size={22} color={c.textPrimary} />
+      </Pressable>
       <IconButton
         onPress={() =>
           Alert.alert(t("search.filterTitle"), t("search.filterBody"))

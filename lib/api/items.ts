@@ -70,6 +70,38 @@ export async function getItem(id: string): Promise<GetItemResponse> {
   return data;
 }
 
+export type SearchSimilarParams = {
+  embedding: number[];
+  modelVersion: string;
+  limit?: number;
+  kind?: ItemKind;
+};
+
+export type SearchSimilarResult = {
+  item: Item;
+  distance: number;
+};
+
+export type SearchSimilarResponse = {
+  results: SearchSimilarResult[];
+  modelVersion: string;
+};
+
+export async function searchSimilar(
+  params: SearchSimilarParams,
+): Promise<SearchSimilarResponse> {
+  const { data } = await apiClient.post<SearchSimilarResponse>(
+    "/api/v1/items/search-similar",
+    {
+      embedding: params.embedding,
+      modelVersion: params.modelVersion,
+      limit: params.limit,
+      kind: params.kind,
+    },
+  );
+  return data;
+}
+
 export async function createItem(
   input: CreateItemInput,
 ): Promise<CreateItemResponse> {

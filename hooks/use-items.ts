@@ -1,9 +1,11 @@
 import {
   getItem,
   listItems,
+  searchSimilar,
   type ListItemsParams,
+  type SearchSimilarParams,
 } from "@/lib/api/items";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 export function useItem(id: string | undefined) {
   return useQuery({
@@ -21,5 +23,11 @@ export function useLostItemsList(params?: ListItemsParams) {
   return useQuery({
     queryKey: ["items", { kind, limit, offset }],
     queryFn: () => listItems({ kind, limit, offset }),
+  });
+}
+
+export function useSearchSimilarMutation() {
+  return useMutation({
+    mutationFn: (params: SearchSimilarParams) => searchSimilar(params),
   });
 }

@@ -9,12 +9,16 @@ import {
   initMobilenet,
 } from "@/lib/mobilenet-runner";
 import { Image as ExpoImage } from "expo-image";
+import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { Calendar } from "react-native-calendars";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -84,13 +88,35 @@ function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
 
 const EMBEDDING_DIM = 1024;
 const MODEL_VERSION = "mobilenet-v1";
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseOccurredAtIso(raw: string): string | undefined {
   const t = raw.trim();
   if (!t) return undefined;
-  const d = new Date(t);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+  if (!DATE_ONLY_RE.test(t)) return undefined;
+  const [yearRaw, monthRaw, dayRaw] = t.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const d = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(d.getTime()) ||
+    d.getFullYear() !== year ||
+    d.getMonth() + 1 !== month ||
+    d.getDate() !== day
+  ) {
+    return undefined;
+  }
+  return new Date(
+    Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()),
+  ).toISOString();
+}
+
+function formatDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function imageMimeToFileName(mime: string): string {
@@ -101,6 +127,7 @@ function imageMimeToFileName(mime: string): string {
 }
 
 export function LostItemForm() {
+  const router = useRouter();
   const createItemMutation = useCreateItem();
   const [modelLoaded, setModelLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -110,6 +137,9 @@ export function LostItemForm() {
   const [title, setTitle] = useState("");
   const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [time, setTime] = useState("");
+  const [pickedOccurredAt, setPickedOccurredAt] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [timeInputError, setTimeInputError] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
   const [kind, setKind] = useState<ItemKind>("lost");
@@ -189,6 +219,77 @@ export function LostItemForm() {
 
   const normalizeClassName = (className: string) => {
     return className.split(",")[0].replace(/_/g, " ").trim();
+  };
+
+  const resetFormState = () => {
+    setImageUri(null);
+    setImageMime("image/jpeg");
+    setFeatureVector(null);
+    setTitle("");
+    setPredictions([]);
+    setTime("");
+    setPickedOccurredAt(null);
+    setShowDatePicker(false);
+    setTimeInputError("");
+    setLocation("");
+    setCategory("");
+    setKind("lost");
+    setDescription("");
+    setSubmitMessage("");
+    setSubmitError("");
+    setLastFeatureDim(null);
+    setPlaceGeometry(null);
+    setObjectHint(t("form.categoryHintDefault"));
+  };
+
+  const handleOpenDatePicker = () => {
+    if (!pickedOccurredAt) {
+      const parsedIso = parseOccurredAtIso(time);
+      setPickedOccurredAt(parsedIso ? new Date(parsedIso) : new Date());
+    }
+    setShowDatePicker(true);
+  };
+
+  const handleDatePickerConfirm = (selectedDate: Date) => {
+    const now = new Date();
+    const safeDate =
+      selectedDate.getTime() > now.getTime() ? now : selectedDate;
+    setPickedOccurredAt(safeDate);
+    setTime(formatDateInputValue(safeDate));
+    setTimeInputError("");
+    setShowDatePicker(false);
+  };
+
+  const handleCalendarDayPress = (day: { dateString: string }) => {
+    const iso = parseOccurredAtIso(day.dateString);
+    if (!iso) return;
+    const selectedDate = new Date(iso);
+    handleDatePickerConfirm(selectedDate);
+  };
+
+  const validateDateInput = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    if (!DATE_ONLY_RE.test(trimmed)) return t("form.timeInvalidFormat");
+    const iso = parseOccurredAtIso(trimmed);
+    if (!iso) return t("form.timeInvalidDate");
+    const chosenDate = new Date(iso);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (chosenDate.getTime() > today.getTime()) {
+      return t("form.timeAfterToday");
+    }
+    return "";
+  };
+
+  const handleTimeChange = (next: string) => {
+    setTime(next);
+    const err = validateDateInput(next);
+    setTimeInputError(err);
+    if (!err) {
+      const iso = parseOccurredAtIso(next);
+      setPickedOccurredAt(iso ? new Date(iso) : null);
+    }
   };
 
   const generateReadableAddressFromNominatim = (
@@ -399,6 +500,10 @@ export function LostItemForm() {
     }
 
     const occurredAt = parseOccurredAtIso(time);
+    if (time.trim() && (!occurredAt || timeInputError)) {
+      setTimeInputError(validateDateInput(time));
+      return;
+    }
 
     const formData = {
       kind,
@@ -414,7 +519,6 @@ export function LostItemForm() {
         type: imageMime || "image/jpeg",
       },
     } as const;
-    console.log(formData, "formData");
     createItemMutation.mutate(formData, {
       onSuccess: (data) => {
         setSubmitMessage(
@@ -427,6 +531,8 @@ export function LostItemForm() {
             category: category.trim() || t("common.notProvided"),
           }),
         );
+        resetFormState();
+        router.replace(formData.kind === "found" ? "/(tabs)/found" : "/(tabs)");
       },
       onError: (e) => {
         const msg =
@@ -642,10 +748,62 @@ export function LostItemForm() {
             placeholder={t("form.timePlaceholder")}
             placeholderTextColor={c.placeholder}
             value={time}
-            onChangeText={setTime}
+            onChangeText={handleTimeChange}
           />
-          <IconSymbol name="calendar" size={20} color={c.textMuted} />
+          <TouchableOpacity onPress={handleOpenDatePicker} activeOpacity={0.7}>
+            <IconSymbol name="calendar" size={20} color={c.textMuted} />
+          </TouchableOpacity>
         </View>
+        {timeInputError ? (
+          <ThemedText style={[styles.hint, { color: c.danger }]}>
+            {timeInputError}
+          </ThemedText>
+        ) : null}
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <Pressable
+            style={styles.calendarModalOverlay}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <Pressable
+              style={[
+                styles.calendarModalCard,
+                { backgroundColor: c.cardBackground, borderColor: c.borderSubtle },
+              ]}
+              onPress={() => {}}
+            >
+              <Calendar
+                current={formatDateInputValue(pickedOccurredAt ?? new Date())}
+                maxDate={formatDateInputValue(new Date())}
+                onDayPress={handleCalendarDayPress}
+                markedDates={
+                  time && !timeInputError
+                    ? {
+                        [time]: {
+                          selected: true,
+                          selectedColor: c.brand,
+                        },
+                      }
+                    : undefined
+                }
+                theme={{
+                  calendarBackground: c.cardBackground,
+                  textSectionTitleColor: c.textMuted,
+                  dayTextColor: c.textPrimary,
+                  monthTextColor: c.textPrimary,
+                  arrowColor: c.brand,
+                  selectedDayBackgroundColor: c.brand,
+                  selectedDayTextColor: c.onBrand,
+                  todayTextColor: c.brand,
+                }}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
 
       <View style={styles.formGroup}>
@@ -1191,6 +1349,18 @@ function createLostItemFormStyles() {
     useCurrentLocationButtonText: {
       fontSize: 14,
       fontWeight: "700",
+    },
+    calendarModalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.35)",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+    },
+    calendarModalCard: {
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      overflow: "hidden",
+      paddingBottom: 8,
     },
   });
 }
