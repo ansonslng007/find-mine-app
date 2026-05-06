@@ -669,7 +669,7 @@ export function LostItemForm() {
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            kind === "lost" && styles.segmentBtnLostActive,
+            kind === "lost" && { backgroundColor: c.badgeLost },
           ]}
           onPress={() => setKind("lost")}
           activeOpacity={0.85}
@@ -687,7 +687,7 @@ export function LostItemForm() {
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            kind === "found" && { backgroundColor: c.brand },
+            kind === "found" && { backgroundColor: c.badgeFound },
           ]}
           onPress={() => setKind("found")}
           activeOpacity={0.85}
@@ -1154,9 +1154,6 @@ function createLostItemFormStyles() {
       borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
-    },
-    segmentBtnLostActive: {
-      backgroundColor: "#EF4444",
     },
     segmentLabelOnLight: {
       color: "#FFFFFF",

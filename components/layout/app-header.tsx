@@ -22,14 +22,12 @@ export function AppHeader({
     () =>
       StyleSheet.create({
         header: {
-          // flexDirection: "row",
-          // alignItems: "center",
-          // marginBottom: 20,
           backgroundColor: c.cardBackground,
           paddingHorizontal: 16,
           paddingBottom: 16,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: c.borderSubtle,
+          overflow: "hidden",
         },
         headerRow: {
           flexDirection: "row",

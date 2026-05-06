@@ -13,7 +13,7 @@ export const zhHant = {
     post: "發布",
     profile: "個人",
   },
-  home: {
+  lostHome: {
     title: "失物",
     subtitle: "一起找回遺失物",
     loading: "載入中…",
@@ -23,6 +23,27 @@ export const zhHant = {
     searchByImageHint:
       "上傳一張您要尋找物品的照片，我們會在資料庫中搜尋視覺上相似的失物。",
     searchByImageClose: "關閉",
+    takePhoto: "立即拍照",
+    takePhotoHint: "使用相機",
+    pickLibrary: "從相簿選擇",
+    pickLibraryHint: "選擇既有照片",
+    imageSearchActive: "正在以圖搜尋類似物品",
+    imageSearchClear: "清除",
+    imageSearchFailed: "搜尋失敗",
+    imageSearchEmpty: "找不到視覺相似的物品",
+    modelLoading: "模型載入中…",
+    classifying: "辨識圖片中…",
+    searching: "搜尋中…",
+  },
+  foundHome: {
+    title: "尋獲",
+    subtitle: "幫物品找到失主",
+    loading: "載入中…",
+    empty: "沒有符合的項目",
+    searchPlaceholder: "搜尋物品…",
+    searchByImageTitle: "以圖搜尋",
+    searchByImageHint:
+      "上傳一張您找到物品的照片，我們會在資料庫中搜尋視覺上相似的尋獲物。",
     takePhoto: "立即拍照",
     takePhotoHint: "使用相機",
     pickLibrary: "從相簿選擇",

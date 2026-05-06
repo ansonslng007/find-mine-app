@@ -13,7 +13,7 @@ export const en = {
     post: "Post",
     profile: "Profile",
   },
-  home: {
+  lostHome: {
     title: "Lost items",
     subtitle: "Let’s find what was lost",
     loading: "Loading…",
@@ -23,6 +23,27 @@ export const en = {
     searchByImageHint:
       "Upload a photo of the item you’re looking for. We’ll search for visually similar lost items.",
     searchByImageClose: "Close",
+    takePhoto: "Take photo",
+    takePhotoHint: "Use camera",
+    pickLibrary: "Photo library",
+    pickLibraryHint: "Choose existing",
+    imageSearchActive: "Showing visually similar items",
+    imageSearchClear: "Clear",
+    imageSearchFailed: "Search failed",
+    imageSearchEmpty: "No visually similar items found",
+    modelLoading: "Loading model…",
+    classifying: "Analyzing image…",
+    searching: "Searching…",
+  },
+  foundHome: {
+    title: "Found items",
+    subtitle: "Help items find their owners",
+    loading: "Loading…",
+    empty: "No matching items",
+    searchPlaceholder: "Search items…",
+    searchByImageTitle: "Search by image",
+    searchByImageHint:
+      "Upload a photo of the item you found. We’ll search for visually similar found items.",
     takePhoto: "Take photo",
     takePhotoHint: "Use camera",
     pickLibrary: "Photo library",

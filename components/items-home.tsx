@@ -4,22 +4,19 @@ import {
   type TranslateFn,
 } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
-import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import {
   SearchByImageSheet,
   type SheetStatusKind,
 } from "@/components/lost-items/search-by-image-sheet";
+import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
-import { useLostItemsList, useSearchSimilarMutation } from "@/hooks/use-items";
+import { useItemsList, useSearchSimilarMutation } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
-import type { Item } from "@/lib/api/items";
-import {
-  classifyImageFromUri,
-  initMobilenet,
-} from "@/lib/mobilenet-runner";
+import type { Item, ItemKind } from "@/lib/api/items";
+import { classifyImageFromUri, initMobilenet } from "@/lib/mobilenet-runner";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useMemo, useState } from "react";
@@ -39,6 +36,12 @@ import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 const MODEL_VERSION = "mobilenet-v1";
 const EMBEDDING_DIM = 1024;
+type HomeScope = "lostHome" | "foundHome";
+
+type ItemsHomeProps = Readonly<{
+  kind: ItemKind;
+  scope: HomeScope;
+}>;
 
 type LostItemsListEmptyProps = Readonly<{
   isPending: boolean;
@@ -50,6 +53,7 @@ type LostItemsListEmptyProps = Readonly<{
   labelErrorStyle: TextStyle;
   emptyTextStyle: TextStyle;
   t: TranslateFn;
+  screenT: TranslateFn;
 }>;
 
 function LostItemsListEmpty({
@@ -62,6 +66,7 @@ function LostItemsListEmpty({
   labelErrorStyle,
   emptyTextStyle,
   t,
+  screenT,
 }: LostItemsListEmptyProps) {
   const errorMessage =
     error instanceof Error ? error.message : t("common.loadListFailed");
@@ -70,7 +75,7 @@ function LostItemsListEmpty({
     return (
       <View style={centerBlockStyle}>
         <ActivityIndicator size="large" color={brandColor} />
-        <ThemedText type="bodyMuted">{t("home.loading")}</ThemedText>
+        <ThemedText type="bodyMuted">{screenT("loading")}</ThemedText>
       </View>
     );
   }
@@ -88,7 +93,7 @@ function LostItemsListEmpty({
 
   return (
     <ThemedText type="bodyMuted" style={emptyTextStyle}>
-      {t("home.empty")}
+      {screenT("empty")}
     </ThemedText>
   );
 }
@@ -96,18 +101,18 @@ function LostItemsListEmpty({
 type SimilarItemsEmptyProps = Readonly<{
   centerBlockStyle: ViewStyle;
   emptyTextStyle: TextStyle;
-  t: TranslateFn;
+  screenT: TranslateFn;
 }>;
 
 function SimilarItemsEmpty({
   centerBlockStyle,
   emptyTextStyle,
-  t,
+  screenT,
 }: SimilarItemsEmptyProps) {
   return (
     <View style={centerBlockStyle}>
       <ThemedText type="bodyMuted" style={emptyTextStyle}>
-        {t("home.imageSearchEmpty")}
+        {screenT("imageSearchEmpty")}
       </ThemedText>
     </View>
   );
@@ -124,6 +129,7 @@ type HomeListEmptyProps = Readonly<{
   brandColor: string;
   labelErrorStyle: TextStyle;
   t: TranslateFn;
+  screenT: TranslateFn;
 }>;
 
 function HomeListEmpty({
@@ -137,13 +143,14 @@ function HomeListEmpty({
   brandColor,
   labelErrorStyle,
   t,
+  screenT,
 }: HomeListEmptyProps) {
   if (mode === "similar") {
     return (
       <SimilarItemsEmpty
         centerBlockStyle={centerBlockStyle}
         emptyTextStyle={emptyTextStyle}
-        t={t}
+        screenT={screenT}
       />
     );
   }
@@ -159,6 +166,7 @@ function HomeListEmpty({
       labelErrorStyle={labelErrorStyle}
       emptyTextStyle={emptyTextStyle}
       t={t}
+      screenT={screenT}
     />
   );
 }
@@ -166,34 +174,36 @@ function HomeListEmpty({
 type ImageSearchBannerProps = Readonly<{
   onClear: () => void;
   bannerStyle: ViewStyle;
-  t: TranslateFn;
+  screenT: TranslateFn;
   resultCount: number;
 }>;
 
 function ImageSearchBanner({
   onClear,
   bannerStyle,
-  t,
+  screenT,
   resultCount,
 }: ImageSearchBannerProps) {
   return (
     <View style={bannerStyle}>
       <ThemedText type="body" style={{ flex: 1 }}>
-        {`${t("home.imageSearchActive")} (${resultCount})`}
+        {`${screenT("imageSearchActive")} (${resultCount})`}
       </ThemedText>
       <Pressable onPress={onClear} hitSlop={10}>
-        <ThemedText type="link">{t("home.imageSearchClear")}</ThemedText>
+        <ThemedText type="link">{screenT("imageSearchClear")}</ThemedText>
       </Pressable>
     </View>
   );
 }
 
-export function LostItemsHome() {
+export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const insets = useSafeAreaInsets();
   const c = useAppColors();
   const { t } = useI18n();
+  const homeT = (key: string) => t(`${scope}.${key}`);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<LostItemCategoryId>("all");
+  const [isCategoryExpanded, setIsCategoryExpanded] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [mode, setMode] = useState<"normal" | "similar">("normal");
   const [busyKind, setBusyKind] = useState<"idle" | "classify" | "search">(
@@ -202,12 +212,12 @@ export function LostItemsHome() {
   const [imageSearchError, setImageSearchError] = useState<string | null>(null);
 
   const { data, isPending, isError, error, refetch, isRefetching } =
-    useLostItemsList({ kind: "lost" });
+    useItemsList({ kind });
 
   const searchSimilarMutation = useSearchSimilarMutation();
 
   useEffect(() => {
-    void initMobilenet().catch(() => {});
+    initMobilenet().catch(() => {});
   }, []);
 
   const pageStyles = useMemo(
@@ -256,7 +266,8 @@ export function LostItemsHome() {
   }, [data?.items, query, category]);
 
   const similarItems = useMemo(
-    () => searchSimilarMutation.data?.results.map((result) => result.item) ?? [],
+    () =>
+      searchSimilarMutation.data?.results.map((result) => result.item) ?? [],
     [searchSimilarMutation.data],
   );
 
@@ -318,7 +329,7 @@ export function LostItemsHome() {
       const res = await searchSimilarMutation.mutateAsync({
         embedding,
         modelVersion: MODEL_VERSION,
-        kind: "lost",
+        kind,
         limit: 50,
       });
       console.log("search-similar results:", res.results);
@@ -328,7 +339,7 @@ export function LostItemsHome() {
       if (e instanceof ApiError) {
         setImageSearchError(e.message);
       } else {
-        setImageSearchError(t("home.imageSearchFailed"));
+        setImageSearchError(homeT("imageSearchFailed"));
       }
     } finally {
       setBusyKind("idle");
@@ -408,6 +419,7 @@ export function LostItemsHome() {
       brandColor={c.brand}
       labelErrorStyle={pageStyles.labelError}
       t={t}
+      screenT={homeT}
     />
   );
 
@@ -415,8 +427,8 @@ export function LostItemsHome() {
 
   return (
     <PageLayoutWithHeader
-      screenTitle={t("home.title")}
-      screenSubtitle={t("home.subtitle")}
+      screenTitle={homeT("title")}
+      screenSubtitle={homeT("subtitle")}
       icon="shippingbox.fill"
       useScrollView={false}
     >
@@ -424,7 +436,13 @@ export function LostItemsHome() {
         query={query}
         onQueryChange={setQuery}
         onPressSearchByImage={openSearchSheet}
+        isCategoryExpanded={isCategoryExpanded}
+        onToggleCategoryExpanded={() => setIsCategoryExpanded((prev) => !prev)}
+        scope={scope}
       />
+      {isCategoryExpanded ? (
+        <CategoryChipRow category={category} onCategoryChange={setCategory} />
+      ) : null}
 
       <SearchByImageSheet
         visible={isSheetOpen}
@@ -434,15 +452,14 @@ export function LostItemsHome() {
         isBusy={isBusy}
         statusKind={sheetStatusKind}
         errorMessage={imageSearchError}
+        scope={scope}
       />
-
-      <CategoryChipRow category={category} onCategoryChange={setCategory} />
 
       {mode === "similar" ? (
         <ImageSearchBanner
           onClear={handleClearImageSearch}
           bannerStyle={pageStyles.imageSearchBanner}
-          t={t}
+          screenT={homeT}
           resultCount={similarItems.length}
         />
       ) : null}

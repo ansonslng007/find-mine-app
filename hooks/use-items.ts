@@ -15,7 +15,7 @@ export function useItem(id: string | undefined) {
   });
 }
 
-export function useLostItemsList(params?: ListItemsParams) {
+export function useItemsList(params?: ListItemsParams) {
   const kind = params?.kind;
   const limit = params?.limit ?? 50;
   const offset = params?.offset ?? 0;

@@ -1,5 +1,5 @@
-import { LostItemsHome } from "@/components/lost-items-home";
+import { ItemsHome } from "@/components/items-home";
 
 export default function HomeScreen() {
-  return <LostItemsHome />;
+  return <ItemsHome kind="lost" scope="lostHome" />;
 }

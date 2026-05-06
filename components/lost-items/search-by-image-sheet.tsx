@@ -23,7 +23,7 @@ type SheetStatusProps = Readonly<{
   errorMessage: string | null;
   brandColor: string;
   rowStyle: ViewStyle;
-  t: TranslateFn;
+  screenT: TranslateFn;
 }>;
 
 function SheetStatus({
@@ -31,7 +31,7 @@ function SheetStatus({
   errorMessage,
   brandColor,
   rowStyle,
-  t,
+  screenT,
 }: SheetStatusProps) {
   if (errorMessage) {
     return (
@@ -45,7 +45,7 @@ function SheetStatus({
     return (
       <View style={rowStyle}>
         <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{t("home.modelLoading")}</ThemedText>
+        <ThemedText type="bodyMuted">{screenT("modelLoading")}</ThemedText>
       </View>
     );
   }
@@ -54,7 +54,7 @@ function SheetStatus({
     return (
       <View style={rowStyle}>
         <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{t("home.classifying")}</ThemedText>
+        <ThemedText type="bodyMuted">{screenT("classifying")}</ThemedText>
       </View>
     );
   }
@@ -63,7 +63,7 @@ function SheetStatus({
     return (
       <View style={rowStyle}>
         <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{t("home.searching")}</ThemedText>
+        <ThemedText type="bodyMuted">{screenT("searching")}</ThemedText>
       </View>
     );
   }
@@ -79,6 +79,7 @@ type Props = Readonly<{
   isBusy: boolean;
   statusKind: SheetStatusKind;
   errorMessage: string | null;
+  scope: "lostHome" | "foundHome";
 }>;
 
 export function SearchByImageSheet({
@@ -89,9 +90,11 @@ export function SearchByImageSheet({
   isBusy,
   statusKind,
   errorMessage,
+  scope,
 }: Props) {
   const c = useAppColors();
   const { t } = useI18n();
+  const screenT = (key: string) => t(`${scope}.${key}`);
   const insets = useSafeAreaInsets();
 
   const styles = useMemo(
@@ -202,7 +205,7 @@ export function SearchByImageSheet({
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
             <View style={styles.headerTitle}>
-              <ThemedText type="screenTitle">{t("home.searchByImageTitle")}</ThemedText>
+              <ThemedText type="screenTitle">{screenT("searchByImageTitle")}</ThemedText>
             </View>
             <Pressable
               style={styles.closeHit}
@@ -227,10 +230,10 @@ export function SearchByImageSheet({
                 <IconSymbol name="camera.fill" size={26} color={c.onBrand} />
               </View>
               <ThemedText type="cardTitle" style={styles.optionMain}>
-                {t("home.takePhoto")}
+                {screenT("takePhoto")}
               </ThemedText>
               <ThemedText type="caption" style={styles.optionSub}>
-                {t("home.takePhotoHint")}
+                {screenT("takePhotoHint")}
               </ThemedText>
             </Pressable>
 
@@ -250,10 +253,10 @@ export function SearchByImageSheet({
                 />
               </View>
               <ThemedText type="cardTitle" style={styles.optionMain}>
-                {t("home.pickLibrary")}
+                {screenT("pickLibrary")}
               </ThemedText>
               <ThemedText type="caption" style={styles.optionSub}>
-                {t("home.pickLibraryHint")}
+                {screenT("pickLibraryHint")}
               </ThemedText>
             </Pressable>
           </View>
@@ -263,13 +266,13 @@ export function SearchByImageSheet({
             errorMessage={errorMessage}
             brandColor={c.brand}
             rowStyle={styles.statusRow}
-            t={t}
+            screenT={screenT}
           />
 
           <View style={styles.hintBox}>
             <IconSymbol name="magnifyingglass" size={20} color={c.textMuted} />
             <ThemedText type="bodyMuted" style={{ flex: 1 }}>
-              {t("home.searchByImageHint")}
+              {screenT("searchByImageHint")}
             </ThemedText>
           </View>
         </View>

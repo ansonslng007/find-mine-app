@@ -132,7 +132,7 @@ export function ItemDetailScreen() {
           paddingHorizontal: 12,
           paddingVertical: 6,
           borderRadius: 999,
-          backgroundColor: "#D32F2F",
+          backgroundColor: c.badgeLost,
         },
         badgeText: {
           color: "#FFFFFF",
