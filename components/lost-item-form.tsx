@@ -39,13 +39,13 @@ interface PredictionResult {
   probability: number;
 }
 
-/** Place Details 回傳的 geometry（location + 選填 viewport）。 */
+/** Geometry returned from Place Details (location + optional viewport). */
 interface PlaceGeometry {
   location: { lat: number; lng: number };
   viewport?: unknown;
 }
 
-/** 從 `onPress(data, details)` 的 `details`（即 `result`）解析 geometry。 */
+/** Parse geometry from `details` in `onPress(data, details)` (i.e. `result`). */
 function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
   if (!details || typeof details !== "object") {
     return null;
@@ -172,7 +172,7 @@ export function LostItemForm() {
         const ok = await initMobilenet();
         setModelLoaded(ok);
         if (!ok) {
-          console.error("TensorFlow.js / MobileNet 初始化失敗");
+          console.error("TensorFlow.js / MobileNet init failed");
         }
       } catch (error) {
         console.error("TensorFlow.js load failed", error);
@@ -209,7 +209,7 @@ export function LostItemForm() {
     };
   }, []);
 
-  // 自動獲取當前位置
+  // Auto-fetch current location
   useEffect(() => {
     const initializeLocation = async () => {
       await getCurrentLocation();
@@ -571,7 +571,7 @@ export function LostItemForm() {
 
       const { latitude, longitude } = locationResult.coords;
 
-      // 使用 Nominatim 服務進行反向地理編碼（替代已廢棄的 Google Geocoding API）
+      // Reverse geocode via Nominatim (replaces deprecated Google Geocoding API)
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
@@ -647,7 +647,7 @@ export function LostItemForm() {
       }
     } else {
       console.warn(
-        "[Places] 未取得 geometry，請確認已設 fetchDetails、API Key 已啟用 Place Details，且 GooglePlacesDetailsQuery 含 geometry 欄位。",
+        "[Places] No geometry returned. Ensure fetchDetails is set, the API key has Place Details enabled, and GooglePlacesDetailsQuery requests geometry fields.",
         details,
       );
     }

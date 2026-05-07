@@ -18,7 +18,7 @@ export type MockLostItem = {
   imageUrl: string;
   category: Exclude<LostItemCategoryId, "all">;
   createdAt: string;
-  /** 是否在卡片右側顯示相對時間（設計圖其中一列） */
+  /** Whether to show relative time on the card right (per design mock row). */
   showRelativeTime?: boolean;
 };
 

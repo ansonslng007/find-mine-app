@@ -16,7 +16,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
   const g = globalThis as typeof globalThis & { atob?: (s: string) => string };
   const atobFn = g.atob;
   if (!atobFn) {
-    throw new Error("atob 不可用，無法解碼圖片");
+    throw new Error("atob is not available; cannot decode image");
   }
   const binary = atobFn(base64);
   const len = binary.length;
@@ -27,7 +27,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return out;
 }
 
-/** iOS / Android：初始化 RN WebGL 後端並載入 MobileNet。 */
+/** iOS / Android: initialize RN WebGL backend and load MobileNet. */
 export async function initMobilenet(): Promise<boolean> {
   await import("@tridipdas13/tfjs-react-native");
   const tf = await import("@tensorflow/tfjs");
@@ -48,15 +48,15 @@ export function disposeMobilenet(): void {
 }
 
 /**
- * 將相簿 URI 轉成 JPEG 位元組後解碼為張量，再分類與取嵌入向量。
- * 呼叫前須已成功執行 initMobilenet。
+ * Turns a gallery URI into JPEG bytes, decodes to a tensor, then classifies and returns embedding features.
+ * Call only after initMobilenet has succeeded.
  */
 export async function classifyImageFromUri(uri: string): Promise<{
   rawPredictions: MobilenetRawPrediction[];
   featureVector: number[];
 }> {
   if (!modelRef) {
-    throw new Error("模型尚未載入");
+    throw new Error("Model not loaded yet");
   }
 
   const { decodeJpeg } = await import("@tridipdas13/tfjs-react-native");

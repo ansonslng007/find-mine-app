@@ -75,6 +75,56 @@ export const en = {
     helpSubtitle: "FAQs and contact",
     aboutTitle: "About",
     aboutVersion: "Version %{version}",
+    signOutTitle: "Sign Out",
+    signOutSubtitle: "Log out of your account",
+    signOutConfirmTitle: "Sign out?",
+    signOutConfirmBody:
+      "You will need to sign in again to use your account on this device.",
+    biometricTitle: "Biometric sign-in",
+    biometricSubtitle:
+      "Use Face ID or fingerprint for faster sign-in on this device.",
+    biometricPasswordTitle: "Confirm password",
+    biometricPasswordBody:
+      "Enter your password once so this device can unlock biometric sign-in after you log out.",
+    biometricPasswordPlaceholder: "Password",
+    biometricPasswordContinue: "Continue",
+    biometricHardwareUnavailable:
+      "Biometrics are not available on this device.",
+  },
+  auth: {
+    errors: {
+      generic: "Something went wrong. Please try again.",
+      invalidCredentials: "Invalid email or password.",
+      emailInUse: "This email is already registered.",
+      invalidBody: "Please check your input.",
+      fillAll: "Please enter email and password.",
+      passwordMismatch: "Passwords do not match.",
+      passwordTooShort: "Password must be at least 8 characters.",
+      biometricNeedPasswordLogin:
+        "Biometric sign-in is not set up on this device. Please sign in with your password first.",
+    },
+    signingIn: "Signing in…",
+    signingUp: "Creating account…",
+    biometricLogin: "Sign in with biometrics",
+    biometricPrompt: "Authenticate to sign in",
+    biometricEnableTitle: "Enable biometric sign-in?",
+    biometricEnableBody:
+      "Next time you can sign in with Face ID or fingerprint without typing your password.",
+    biometricEnableConfirm: "Enable",
+    biometricErrors: {
+      failed: "Could not verify your identity. Try again or sign in with password.",
+      notEnrolled: "No Face ID or fingerprint is set up on this device.",
+      lockout: "Too many attempts. Try again later or sign in with password.",
+      passcodeNotSet: "Set a device passcode and enroll Face ID or fingerprint first.",
+      missingUsageDescription:
+        "App is missing Face ID permission (NSFaceIDUsageDescription). Please rebuild your native Dev Client.",
+      notAvailable:
+        "Biometrics are not available right now (hardware or enrollment). Sign in with password.",
+      unableToProcess:
+        "Verification did not complete. Try again or sign in with password.",
+      timeout: "Verification timed out. Try again or sign in with password.",
+      noSpace: "Verification could not complete. Try again later or sign in with password.",
+    },
   },
   settings: {
     title: "Settings",
@@ -87,6 +137,27 @@ export const en = {
     languagePickTitle: "Choose language",
     langZhHant: "Traditional Chinese",
     langEn: "English",
+  },
+  signIn: {
+    title: "Welcome to Find Mine",
+    subtitle: "Sign in to report lost items or help others\nfind theirs",
+    emailPlaceholder: "Email address",
+    passwordPlaceholder: "Password",
+    invalidError: "Invalid login credentials",
+    forgotPassword: "Forgot Password?",
+    signIn: "Sign In",
+    continueWith: "or continue with",
+    noAccount: "Don't have an account?",
+    signUp: "Sign Up",
+  },
+  signUp: {
+    title: "Create Account",
+    subtitle: "Join our community and help reunite lost items",
+    fullNamePlaceholder: "Full name",
+    emailPlaceholder: "Email address",
+    passwordPlaceholder: "Password",
+    confirmPasswordPlaceholder: "Confirm password",
+    createAccount: "Create Account",
   },
   card: {
     badgeLost: "Lost",

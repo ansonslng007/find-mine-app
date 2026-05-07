@@ -1,5 +1,7 @@
 import axios, { type AxiosError } from "axios";
 
+import { getAuthToken } from "@/lib/auth/token-storage";
+
 const baseURL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
@@ -32,6 +34,28 @@ function isErrorPayload(data: unknown): data is {
 export const apiClient = axios.create({
   baseURL,
   timeout: 30_000,
+});
+
+function isPublicAuthPath(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  return (
+    url.includes("/auth/sign-in") ||
+    url.includes("/auth/sign-up")
+  );
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  if (isPublicAuthPath(config.url)) {
+    delete config.headers.Authorization;
+    return config;
+  }
+  const token = await getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 apiClient.interceptors.response.use(
