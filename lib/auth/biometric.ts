@@ -6,9 +6,6 @@ import { Platform } from "react-native";
  * Whether the device supports Face ID / fingerprint-only login (biometric enrolled, not just device PIN / pattern).
  */
 export async function canUseBiometricLogin(): Promise<boolean> {
-  if (Platform.OS === "web") {
-    return false;
-  }
   const compatible = await LocalAuthentication.hasHardwareAsync();
   if (!compatible) {
     return false;

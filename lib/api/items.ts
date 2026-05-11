@@ -2,6 +2,11 @@ import { apiClient } from "./client";
 
 export type ItemKind = "lost" | "found";
 
+export type ItemPostedBy = {
+  id: string;
+  displayName: string | null;
+};
+
 export type Item = {
   id: string;
   kind: ItemKind;
@@ -14,6 +19,7 @@ export type Item = {
   status: string;
   createdAt: string;
   updatedAt: string;
+  postedBy: ItemPostedBy | null;
 };
 
 export type CreateItemResponse = {

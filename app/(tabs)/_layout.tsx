@@ -6,6 +6,7 @@ import { CenterTabButton } from "@/components/center-tab-button";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
+import { useChatUnreadCount } from "@/hooks/use-chat-unread-count";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/providers/i18n-provider";
 
@@ -13,6 +14,14 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
   const { t } = useI18n();
+  const unreadQuery = useChatUnreadCount();
+  const unreadTotal = unreadQuery.data ?? 0;
+  let chatBadge: string | undefined;
+  if (unreadTotal > 99) {
+    chatBadge = "99+";
+  } else if (unreadTotal > 0) {
+    chatBadge = String(unreadTotal);
+  }
 
   return (
     <Tabs
@@ -49,9 +58,18 @@ export default function TabLayout() {
         name="post"
         options={{
           title: t("tabs.post"),
-          tabBarShowLabel: false,
           tabBarIcon: () => null,
           tabBarButton: (props) => <CenterTabButton {...props} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: t("tabs.chat"),
+          tabBarBadge: chatBadge,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={26} name="bubble.left.and.bubble.right" color={color} />
+          ),
         }}
       />
       <Tabs.Screen

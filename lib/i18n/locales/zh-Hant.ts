@@ -11,6 +11,7 @@ export const zhHant = {
     lost: "失物",
     found: "尋獲",
     post: "發布",
+    chat: "聊天",
     profile: "個人",
   },
   lostHome: {
@@ -258,6 +259,22 @@ export const zhHant = {
     submitSuccess:
       "已同步到伺服器（%{kind}）。項目 id：%{id}（時間 %{time}，地點 %{location}，類別 %{category}）",
   },
+  chat: {
+    title: "聊天",
+    subtitle: "與物品相關的訊息",
+    listEmpty: "尚無對話。",
+    loading: "載入對話中…",
+    loadFailed: "無法載入對話。",
+    noMessagesYet: "尚無訊息。",
+    anonymousMember: "會員",
+    missingConversation: "缺少對話編號。",
+    openItemDetail: "查看物品詳情",
+    inputPlaceholder: "輸入訊息…",
+    socketConnectFailed: "即時連線失敗。",
+    joinFailed: "無法加入聊天室。",
+    notConnected: "尚未連線，請稍候再試。",
+    sendFailed: "訊息無法送出。",
+  },
   detail: {
     missingId: "缺少物品 ID",
     back: "返回",
@@ -267,6 +284,12 @@ export const zhHant = {
     close: "關閉",
     description: "描述",
     locationSection: "地點",
+    contactPoster: "聯絡發佈者",
+    youArePoster: "這是你發布的項目。",
+    contactUnavailableLegacy:
+      "此筆資料較早建立，未綁定發佈者帳戶；登入後新發布的項目才可私訊聯絡。",
+    contactFailedTitle: "無法開啟聊天",
+    contactFailedBody: "發生錯誤，請再試一次。",
   },
   modal: {
     title: "這是一個彈出視窗",

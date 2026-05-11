@@ -5,13 +5,17 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
+import { useAuthUser } from "@/hooks/use-auth-user";
 import { useItem } from "@/hooks/use-items";
+import { ApiError } from "@/lib/api/client";
+import { createConversation } from "@/lib/api/chat";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,7 +30,9 @@ export function ItemDetailScreen() {
   const insets = useSafeAreaInsets();
   const c = useAppColors();
   const { t, locale } = useI18n();
+  const { data: authUser } = useAuthUser();
   const { data, isPending, isError, error, refetch } = useItem(id);
+  const [contactBusy, setContactBusy] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -121,6 +127,41 @@ export function ItemDetailScreen() {
           lineHeight: 22,
           color: c.textMuted,
         },
+        contactBtn: {
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 999,
+          backgroundColor: c.brand,
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 48,
+          width: "100%",
+        },
+        contactBtnLabel: {
+          color: c.onBrand,
+          fontSize: 16,
+          fontWeight: "600",
+        },
+        contactFooter: {
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: c.borderSubtle,
+          backgroundColor: c.cardBackground,
+          paddingHorizontal: 20,
+          paddingTop: 14,
+        },
+        contactFooterHint: {
+          fontSize: 14,
+          lineHeight: 21,
+          color: c.textMuted,
+          textAlign: "center",
+        },
+        contactFooterOwn: {
+          fontSize: 15,
+          fontWeight: "600",
+          color: c.textMuted,
+          textAlign: "center",
+          paddingVertical: 12,
+        },
         center: {
           flex: 1,
           justifyContent: "center",
@@ -198,6 +239,37 @@ export function ItemDetailScreen() {
   const categoryLabel = t(`categories.${categoryId}`);
   const description = item.description?.trim() ?? "";
   const location = item.locationText?.trim() ?? "";
+  const poster = item.postedBy ?? null;
+  const isOwnPoster =
+    poster != null && authUser != null && poster.id === authUser.id;
+  const canMessagePoster =
+    poster != null && !isOwnPoster;
+
+  const handleContactPoster = async () => {
+    if (!poster) {
+      return;
+    }
+    if (!authUser) {
+      return;
+    }
+    setContactBusy(true);
+    try {
+      const { conversation } = await createConversation({
+        peerUserId: poster.id,
+        itemId: item.id,
+      });
+      router.push({
+        pathname: "/chat/[conversationId]",
+        params: { conversationId: conversation.id },
+      } as unknown as Href);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : t("detail.contactFailedBody");
+      Alert.alert(t("detail.contactFailedTitle"), msg);
+    } finally {
+      setContactBusy(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -216,6 +288,7 @@ export function ItemDetailScreen() {
       </View>
 
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 24,
@@ -265,6 +338,39 @@ export function ItemDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <View
+        style={[
+          styles.contactFooter,
+          { paddingBottom: Math.max(insets.bottom, 14) },
+        ]}
+      >
+        {canMessagePoster ? (
+          <Pressable
+            style={styles.contactBtn}
+            onPress={handleContactPoster}
+            disabled={contactBusy}
+          >
+            {contactBusy ? (
+              <ActivityIndicator color={c.onBrand} />
+            ) : (
+              <Text style={styles.contactBtnLabel}>
+                {t("detail.contactPoster")}
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
+        {isOwnPoster ? (
+          <ThemedText type="default" style={styles.contactFooterOwn}>
+            {t("detail.youArePoster")}
+          </ThemedText>
+        ) : null}
+        {!canMessagePoster && !isOwnPoster && poster == null ? (
+          <ThemedText type="bodyMuted" style={styles.contactFooterHint}>
+            {t("detail.contactUnavailableLegacy")}
+          </ThemedText>
+        ) : null}
+      </View>
     </View>
   );
 }

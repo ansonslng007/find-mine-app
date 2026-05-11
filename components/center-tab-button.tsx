@@ -1,16 +1,19 @@
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useAppColors } from "@/hooks/use-app-colors";
 import type { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
-import { StyleSheet, View } from "react-native";
-
-const PRIMARY = "#2563EB";
+import { Platform, StyleSheet, View } from "react-native";
 
 export function CenterTabButton(props: BottomTabBarButtonProps) {
   const { style, children: _tabChildren, ...rest } = props;
+  const c = useAppColors();
+
   return (
     <HapticTab {...rest} style={[style, styles.wrapper]}>
-      <View style={styles.fab}>
-        <IconSymbol name="plus" color="#FFFFFF" size={30} />
+      <View style={styles.column}>
+        <View style={[styles.fab, { backgroundColor: c.brand }]}>
+          <IconSymbol name="plus" color={c.onBrand} size={30} />
+        </View>
       </View>
     </HapticTab>
   );
@@ -21,13 +24,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-end",
-    paddingBottom: 18,
+    paddingBottom: Platform.OS === "ios" ? 18 : 12,
+  },
+  column: {
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
   fab: {
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
     marginTop: -28,
@@ -36,5 +42,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 6,
+  },
+  label: {
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: "500",
+    textAlign: "center",
+    maxWidth: 72,
   },
 });

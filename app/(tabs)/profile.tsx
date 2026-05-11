@@ -3,17 +3,8 @@ import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import { ApiError } from "@/lib/api/client";
-import {
-  getMe,
-  patchMe,
-  signIn as signInRequest,
-  type AuthUser,
-} from "@/lib/api/auth";
+import { getMe, patchMe, type AuthUser } from "@/lib/api/auth";
 import { authenticateWithBiometric, canUseBiometricLogin } from "@/lib/auth/biometric";
-import {
-  hasBiometricCredentials,
-  saveBiometricCredentials,
-} from "@/lib/auth/biometric-credentials";
 import { setBiometricLoginEnabled } from "@/lib/auth/biometric-prefs";
 import { mapAuthErrorToMessage } from "@/lib/auth/map-auth-error";
 import { mapBiometricErrorToMessage } from "@/lib/auth/map-biometric-error";
@@ -30,16 +21,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Constants from "expo-constants";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Switch,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
 
@@ -210,11 +192,6 @@ export default function ProfileScreen() {
   const [phase, setPhase] = useState<ProfileSessionPhase>("loading");
   const [memberUser, setMemberUser] = useState<AuthUser | null>(null);
   const [bioBusy, setBioBusy] = useState(false);
-  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [passwordDraft, setPasswordDraft] = useState("");
-  const [passwordModalError, setPasswordModalError] = useState<string | null>(
-    null,
-  );
 
   const styles = useMemo(
     () =>
@@ -303,6 +280,17 @@ export default function ProfileScreen() {
   const disableBiometricFlow = useCallback(async () => {
     setBioBusy(true);
     try {
+      const authResult = await authenticateWithBiometric(
+        t("auth.biometricPrompt"),
+        t("common.cancel"),
+      );
+      if (!authResult.ok) {
+        const msg = mapBiometricErrorToMessage(authResult.error, t);
+        if (msg.length > 0) {
+          Alert.alert("", msg);
+        }
+        return;
+      }
       const { user } = await patchMe({ biometricLoginEnabled: false });
       await setBiometricLoginEnabled(false);
       await saveAuthUser(user);
@@ -320,13 +308,6 @@ export default function ProfileScreen() {
       const hw = await canUseBiometricLogin();
       if (!hw) {
         Alert.alert("", t("profile.biometricHardwareUnavailable"));
-        return;
-      }
-      const hasCreds = await hasBiometricCredentials();
-      if (!hasCreds) {
-        setPasswordDraft("");
-        setPasswordModalError(null);
-        setPasswordModalVisible(true);
         return;
       }
       const authResult = await authenticateWithBiometric(
@@ -351,48 +332,6 @@ export default function ProfileScreen() {
     }
   }, [t]);
 
-  const submitPasswordForBiometric = useCallback(async () => {
-    if (!memberUser) {
-      return;
-    }
-    if (!passwordDraft.trim()) {
-      setPasswordModalError(t("auth.errors.fillAll"));
-      return;
-    }
-    setPasswordModalError(null);
-    setBioBusy(true);
-    try {
-      const { token, user } = await signInRequest({
-        email: memberUser.email,
-        password: passwordDraft,
-      });
-      await saveAuthToken(token);
-      await saveAuthUser(user);
-      await saveBiometricCredentials(memberUser.email, passwordDraft);
-      setPasswordModalVisible(false);
-      setPasswordDraft("");
-      const authResult = await authenticateWithBiometric(
-        t("auth.biometricPrompt"),
-        t("common.cancel"),
-      );
-      if (!authResult.ok) {
-        const msg = mapBiometricErrorToMessage(authResult.error, t);
-        if (msg.length > 0) {
-          Alert.alert("", msg);
-        }
-        return;
-      }
-      const { user: patched } = await patchMe({ biometricLoginEnabled: true });
-      await setBiometricLoginEnabled(true);
-      await saveAuthUser(patched);
-      setMemberUser(patched);
-    } catch (err) {
-      setPasswordModalError(mapAuthErrorToMessage(err, t));
-    } finally {
-      setBioBusy(false);
-    }
-  }, [memberUser, passwordDraft, t]);
-
   const handleBiometricToggle = useCallback(
     (next: boolean) => {
       if (bioBusy) {
@@ -407,68 +346,6 @@ export default function ProfileScreen() {
     [bioBusy, disableBiometricFlow, enableBiometricFlow],
   );
 
-  const modalStyles = useMemo(
-    () =>
-      StyleSheet.create({
-        overlay: {
-          flex: 1,
-          backgroundColor: "rgba(0,0,0,0.45)",
-          justifyContent: "center",
-          paddingHorizontal: 24,
-        },
-        sheet: {
-          borderRadius: 16,
-          padding: 20,
-          backgroundColor: c.cardBackground,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.borderSubtle,
-        },
-        modalTitle: {
-          fontSize: 18,
-          fontWeight: "700",
-          color: c.textPrimary,
-        },
-        modalBody: {
-          marginTop: 10,
-          fontSize: 15,
-          lineHeight: 22,
-          color: c.textMuted,
-        },
-        input: {
-          marginTop: 14,
-          borderRadius: 12,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.borderSubtle,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          fontSize: 16,
-          color: c.textPrimary,
-        },
-        modalActions: {
-          flexDirection: "row",
-          justifyContent: "flex-end",
-          gap: 12,
-          marginTop: 18,
-        },
-        modalBtnLabel: {
-          fontSize: 16,
-          fontWeight: "600",
-          color: c.brand,
-        },
-        modalBtnLabelMuted: {
-          fontSize: 16,
-          fontWeight: "600",
-          color: c.textMuted,
-        },
-        modalError: {
-          marginTop: 8,
-          fontSize: 14,
-          color: c.badgeLost,
-        },
-      }),
-    [c],
-  );
-
   const handleSignOut = () => {
     Alert.alert(t("profile.signOutConfirmTitle"), t("profile.signOutConfirmBody"), [
       { text: t("common.cancel"), style: "cancel" },
@@ -480,6 +357,7 @@ export default function ProfileScreen() {
             await clearAuthSession();
             setMemberUser(null);
             setPhase("guest");
+            router.replace(ROUTE_PATH.SIGN_IN);
           })();
         },
       },
@@ -535,75 +413,6 @@ export default function ProfileScreen() {
             busy={bioBusy}
             onValueChange={handleBiometricToggle}
           />
-          <Modal
-            visible={passwordModalVisible}
-            transparent
-            animationType="fade"
-            onRequestClose={() => {
-              setPasswordModalVisible(false);
-              setPasswordDraft("");
-              setPasswordModalError(null);
-            }}
-          >
-            <View style={modalStyles.overlay}>
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={() => {
-                  setPasswordModalVisible(false);
-                  setPasswordDraft("");
-                  setPasswordModalError(null);
-                }}
-              />
-              <View style={modalStyles.sheet}>
-                <ThemedText style={modalStyles.modalTitle}>
-                  {t("profile.biometricPasswordTitle")}
-                </ThemedText>
-                <ThemedText style={modalStyles.modalBody}>
-                  {t("profile.biometricPasswordBody")}
-                </ThemedText>
-                <TextInput
-                  value={passwordDraft}
-                  onChangeText={setPasswordDraft}
-                  placeholder={t("profile.biometricPasswordPlaceholder")}
-                  placeholderTextColor={c.placeholder}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!bioBusy}
-                  style={modalStyles.input}
-                />
-                {passwordModalError ? (
-                  <ThemedText style={modalStyles.modalError}>
-                    {passwordModalError}
-                  </ThemedText>
-                ) : null}
-                <View style={modalStyles.modalActions}>
-                  <Pressable
-                    onPress={() => {
-                      setPasswordModalVisible(false);
-                      setPasswordDraft("");
-                      setPasswordModalError(null);
-                    }}
-                    disabled={bioBusy}
-                  >
-                    <ThemedText style={modalStyles.modalBtnLabelMuted}>
-                      {t("common.cancel")}
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      void submitPasswordForBiometric();
-                    }}
-                    disabled={bioBusy}
-                  >
-                    <ThemedText style={modalStyles.modalBtnLabel}>
-                      {t("profile.biometricPasswordContinue")}
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </Modal>
         </>
       ) : null}
 

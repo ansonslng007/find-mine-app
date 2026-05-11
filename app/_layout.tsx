@@ -7,6 +7,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 
+import { RootAuthRedirect } from "@/components/root-auth-redirect";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ColorSchemePreferenceProvider } from "@/providers/color-scheme-preference-provider";
 import { I18nProvider } from "@/providers/i18n-provider";
@@ -25,10 +26,19 @@ export default function RootLayout() {
           <ThemeProvider
             value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
           >
+            <RootAuthRedirect />
             <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="item/[id]"
+                options={{
+                  headerShown: false,
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
+              />
+              <Stack.Screen
+                name="chat/[conversationId]"
                 options={{
                   headerShown: false,
                   presentation: "card",
@@ -49,6 +59,7 @@ export default function RootLayout() {
                   headerShown: false,
                   presentation: "card",
                   animation: "slide_from_right",
+                  gestureEnabled: false,
                 }}
               />
               <Stack.Screen
