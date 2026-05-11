@@ -16,32 +16,32 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/themed-text";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
+import { useAppColors } from "@/hooks/use-app-colors";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getMe, patchMe, signIn as signInRequest } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import {
-  getMe,
-  patchMe,
-  signIn as signInRequest,
-} from "@/lib/api/auth";
-import { authenticateWithBiometric, canUseBiometricLogin } from "@/lib/auth/biometric";
+  authenticateWithBiometric,
+  canUseBiometricLogin,
+} from "@/lib/auth/biometric";
 import {
   hasBiometricCredentials,
   loadBiometricCredentials,
   saveBiometricCredentials,
 } from "@/lib/auth/biometric-credentials";
-import { getBiometricLoginEnabled, setBiometricLoginEnabled } from "@/lib/auth/biometric-prefs";
-import { mapBiometricErrorToMessage } from "@/lib/auth/map-biometric-error";
+import {
+  getBiometricLoginEnabled,
+  setBiometricLoginEnabled,
+} from "@/lib/auth/biometric-prefs";
 import { mapAuthErrorToMessage } from "@/lib/auth/map-auth-error";
+import { mapBiometricErrorToMessage } from "@/lib/auth/map-biometric-error";
 import { saveAuthUser } from "@/lib/auth/session";
 import {
   clearAuthToken,
   getAuthToken,
   saveAuthToken,
 } from "@/lib/auth/token-storage";
-import { useAppColors } from "@/hooks/use-app-colors";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/providers/i18n-provider";
 
 type AuthInputProps = Readonly<{
@@ -257,8 +257,7 @@ export default function SignInScreen() {
     const token = await getAuthToken();
     const storedCreds = await hasBiometricCredentials();
     const hardware = await canUseBiometricLogin();
-    const canShowBio =
-      hardware && pref && (!!token || storedCreds);
+    const canShowBio = hardware && pref && (!!token || storedCreds);
     setBiometricRowVisible(canShowBio);
   }, []);
 
@@ -279,9 +278,12 @@ export default function SignInScreen() {
       const { token, user } = await signInRequest({ email, password });
       await saveAuthToken(token);
       await saveAuthUser(user);
-      const alreadyBioPref = await getBiometricLoginEnabled();
+      await setBiometricLoginEnabled(user.biometricLoginEnabled);
+      if (user.biometricLoginEnabled) {
+        await saveBiometricCredentials(email.trim(), password);
+      }
       const bioOk = await canUseBiometricLogin();
-      if (bioOk && !alreadyBioPref) {
+      if (bioOk && !user.biometricLoginEnabled) {
         Alert.alert(
           t("auth.biometricEnableTitle"),
           t("auth.biometricEnableBody"),
@@ -375,17 +377,6 @@ export default function SignInScreen() {
           flexGrow: 1,
           alignItems: "center",
           paddingVertical: 14,
-        },
-        backRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          alignSelf: "flex-start",
-          marginBottom: 12,
-        },
-        backLabel: {
-          fontSize: 16,
-          fontWeight: "600",
-          color: c.brand,
         },
         panel: {
           width: "100%",
@@ -547,19 +538,6 @@ export default function SignInScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.panel}>
-            <Pressable
-              onPress={() => router.back()}
-              style={({ pressed }) => [
-                styles.backRow,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <IconSymbol name="chevron.left" size={22} color={c.brand} />
-              <ThemedText style={[styles.backLabel, { marginLeft: 4 }]}>
-                {t("settings.back")}
-              </ThemedText>
-            </Pressable>
-
             <View style={styles.logo}>
               <MaterialIcons name="phone-iphone" size={42} color="#FFFFFF" />
             </View>

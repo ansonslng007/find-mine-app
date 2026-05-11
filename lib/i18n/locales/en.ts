@@ -11,6 +11,7 @@ export const en = {
     lost: "Lost",
     found: "Found",
     post: "Post",
+    chat: "Chats",
     profile: "Profile",
   },
   lostHome: {
@@ -266,6 +267,22 @@ export const en = {
     submitSuccess:
       "Synced to server (%{kind}). Item id: %{id} (time: %{time}, location: %{location}, category: %{category})",
   },
+  chat: {
+    title: "Chats",
+    subtitle: "Messages about your items",
+    listEmpty: "No conversations yet.",
+    loading: "Loading conversations…",
+    loadFailed: "Could not load conversations.",
+    noMessagesYet: "No messages yet.",
+    anonymousMember: "Member",
+    missingConversation: "Missing conversation.",
+    openItemDetail: "View item details",
+    inputPlaceholder: "Message…",
+    socketConnectFailed: "Could not connect for live updates.",
+    joinFailed: "Could not join this chat room.",
+    notConnected: "Not connected. Please wait and try again.",
+    sendFailed: "Message could not be sent.",
+  },
   detail: {
     missingId: "Missing item ID",
     back: "Back",
@@ -275,6 +292,12 @@ export const en = {
     close: "Close",
     description: "Description",
     locationSection: "Location",
+    contactPoster: "Message poster",
+    youArePoster: "You posted this item.",
+    contactUnavailableLegacy:
+      "This listing has no linked poster account (older data). Messaging is only available for items published while signed in.",
+    contactFailedTitle: "Could not open chat",
+    contactFailedBody: "Something went wrong. Please try again.",
   },
   modal: {
     title: "This is a modal",

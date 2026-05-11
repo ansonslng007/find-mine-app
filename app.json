@@ -11,8 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "需要位置權限來獲取遺失物品的地點",
-        "NSFaceIDUsageDescription": "使用 Face ID 以快速登入你的帳戶。"
+        "NSLocationWhenInUseUsageDescription": "Location is used to record where lost items were found or reported.",
+        "NSFaceIDUsageDescription": "Use Face ID to sign in to your account quickly."
       }
     },
     "android": {
