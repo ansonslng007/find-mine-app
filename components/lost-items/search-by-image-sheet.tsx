@@ -19,12 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIBRARY_PURPLE = "#7C3AED";
 
-export type SheetStatusKind =
-  | "idle"
-  | "model"
-  | "classify"
-  | "search"
-  | "analyze";
+export type SheetStatusKind = "idle" | "analyze" | "search";
 
 type SheetStatusProps = Readonly<{
   statusKind: SheetStatusKind;
@@ -51,20 +46,11 @@ function SheetStatus({
     );
   }
 
-  if (statusKind === "model") {
+  if (statusKind === "analyze") {
     return (
       <View style={rowStyle}>
         <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{screenT("modelLoading")}</ThemedText>
-      </View>
-    );
-  }
-
-  if (statusKind === "classify") {
-    return (
-      <View style={rowStyle}>
-        <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{screenT("classifying")}</ThemedText>
+        <ThemedText type="bodyMuted">{analyzeLabel}</ThemedText>
       </View>
     );
   }
@@ -74,15 +60,6 @@ function SheetStatus({
       <View style={rowStyle}>
         <ActivityIndicator color={brandColor} />
         <ThemedText type="bodyMuted">{screenT("searching")}</ThemedText>
-      </View>
-    );
-  }
-
-  if (statusKind === "analyze") {
-    return (
-      <View style={rowStyle}>
-        <ActivityIndicator color={brandColor} />
-        <ThemedText type="bodyMuted">{analyzeLabel}</ThemedText>
       </View>
     );
   }
@@ -98,8 +75,8 @@ type Props = Readonly<{
   isBusy: boolean;
   statusKind: SheetStatusKind;
   errorMessage: string | null;
-  /** 列表「以圖搜尋」用 `listSearch` 並傳 `scope`；FAB 用 `fabUpload`。 */
-  presentation?: "listSearch" | "fabUpload";
+  /** 列表「以圖搜尋」用 `listSearch` 並傳 `scope`；FAB 用 `fabUpload`；刊登表單用 `itemPost`。 */
+  presentation?: "listSearch" | "fabUpload" | "itemPost";
   /** `listSearch` 時必填，用於相機／相簿等共用文案。 */
   scope?: "lostHome" | "foundHome";
   fabFooter?: React.ReactNode;
@@ -122,6 +99,7 @@ export function SearchByImageSheet({
   const screenT = (key: string) => t(`${scope}.${key}`);
   const insets = useSafeAreaInsets();
   const isFab = presentation === "fabUpload";
+  const isItemPost = presentation === "itemPost";
 
   const sheetTranslateY = useRef(
     new Animated.Value(Dimensions.get("window").height),
@@ -231,19 +209,37 @@ export function SearchByImageSheet({
           justifyContent: "center",
           paddingVertical: 4,
         },
+        fabFooterBusyWrap: {
+          opacity: 0.45,
+        },
       }),
     [c.cardBackground, c.chipBackground, c.brand, insets.bottom],
   );
 
   const busyOrError = isBusy || Boolean(errorMessage);
 
-  const titleText = isFab
-    ? t("fabUpload.uploadImageTitle")
-    : screenT("searchByImageTitle");
-  const hintText = isFab
-    ? t("fabUpload.sheetHint")
-    : screenT("searchByImageHint");
-  const hintIcon = isFab ? ("photo.on.rectangle" as const) : ("magnifyingglass" as const);
+  let titleText: string;
+  if (isFab) {
+    titleText = t("fabUpload.uploadImageTitle");
+  } else if (isItemPost) {
+    titleText = t("form.uploadImageSheetTitle");
+  } else {
+    titleText = screenT("searchByImageTitle");
+  }
+
+  let hintText: string;
+  if (isFab) {
+    hintText = t("fabUpload.sheetHint");
+  } else if (isItemPost) {
+    hintText = t("form.uploadImageSheetHint");
+  } else {
+    hintText = screenT("searchByImageHint");
+  }
+
+  const hintIcon =
+    isFab || isItemPost
+      ? ("photo.on.rectangle" as const)
+      : ("magnifyingglass" as const);
 
   return (
     <Modal
@@ -317,7 +313,14 @@ export function SearchByImageSheet({
             </Pressable>
           </View>
 
-          {fabFooter}
+          {fabFooter != null ? (
+            <View
+              pointerEvents={isBusy ? "none" : "auto"}
+              style={isBusy ? styles.fabFooterBusyWrap : undefined}
+            >
+              {fabFooter}
+            </View>
+          ) : null}
 
           <SheetStatus
             statusKind={statusKind}
@@ -325,7 +328,9 @@ export function SearchByImageSheet({
             brandColor={c.brand}
             rowStyle={styles.statusRow}
             screenT={screenT}
-            analyzeLabel={t("fabUpload.analyzingImage")}
+            analyzeLabel={
+              isFab ? t("fabUpload.analyzingImage") : t("form.analyzingPhoto")
+            }
           />
 
           <View style={styles.hintBox}>

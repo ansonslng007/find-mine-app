@@ -12,7 +12,12 @@ export type Item = {
   kind: ItemKind;
   title: string;
   description: string | null;
+  category: string;
   locationText: string | null;
+  /** Geocoded latitude when available (Places / GPS). */
+  locationLatitude: number | null;
+  /** Geocoded longitude when available (Places / GPS). */
+  locationLongitude: number | null;
   occurredAt: string | null;
   imageUrl: string;
   imageSha256: string | null;
@@ -24,7 +29,6 @@ export type Item = {
 
 export type CreateItemResponse = {
   item: Item;
-  embedding: { modelVersion: string; dimensions: number };
 };
 
 export type CreateItemImagePart = {
@@ -36,11 +40,13 @@ export type CreateItemImagePart = {
 export type CreateItemInput = {
   kind: ItemKind;
   title: string;
+  category: string;
   description?: string;
   locationText?: string;
+  /** Must be sent together with `locationLongitude` when set. */
+  locationLatitude?: number;
+  locationLongitude?: number;
   occurredAt?: string;
-  modelVersion: string;
-  embedding: number[];
   image: CreateItemImagePart;
 };
 
@@ -76,34 +82,85 @@ export async function getItem(id: string): Promise<GetItemResponse> {
   return data;
 }
 
-export type SearchSimilarParams = {
-  embedding: number[];
-  modelVersion: string;
-  limit?: number;
-  kind?: ItemKind;
+export type ItemCategoriesResponse = {
+  categories: string[];
 };
 
-export type SearchSimilarResult = {
+export async function getItemCategories(): Promise<ItemCategoriesResponse> {
+  const { data } = await apiClient.get<ItemCategoriesResponse>(
+    "/api/v1/items/meta/categories",
+  );
+  return data;
+}
+
+export type SearchByTextParams = {
+  query: string;
+  kind?: ItemKind;
+  limit?: number;
+};
+
+export type SearchByTextResult = {
   item: Item;
   distance: number;
 };
 
-export type SearchSimilarResponse = {
-  results: SearchSimilarResult[];
+export type SearchByTextResponse = {
+  results: SearchByTextResult[];
   modelVersion: string;
 };
 
-export async function searchSimilar(
-  params: SearchSimilarParams,
-): Promise<SearchSimilarResponse> {
-  const { data } = await apiClient.post<SearchSimilarResponse>(
-    "/api/v1/items/search-similar",
+export async function searchByText(
+  params: SearchByTextParams,
+): Promise<SearchByTextResponse> {
+  const { data } = await apiClient.post<SearchByTextResponse>(
+    "/api/v1/items/search-by-text",
     {
-      embedding: params.embedding,
-      modelVersion: params.modelVersion,
-      limit: params.limit,
+      query: params.query,
       kind: params.kind,
+      limit: params.limit,
     },
+  );
+  return data;
+}
+
+export type SearchByImageParams = {
+  uri: string;
+  mime: string;
+  kind?: ItemKind;
+  limit?: number;
+};
+
+export type SearchByImageResult = {
+  item: Item;
+  distance: number;
+};
+
+export type SearchByImageResponse = {
+  results: SearchByImageResult[];
+  modelVersion: string;
+};
+
+export async function searchByImage(
+  params: SearchByImageParams,
+): Promise<SearchByImageResponse> {
+  const form = new FormData();
+  form.append(
+    "image",
+    {
+      uri: params.uri,
+      name: imageMimeToUploadName(params.mime),
+      type: params.mime || "image/jpeg",
+    } as any,
+  );
+  if (params.kind != null) {
+    form.append("kind", params.kind);
+  }
+  if (params.limit != null) {
+    form.append("limit", String(params.limit));
+  }
+  const { data } = await apiClient.post<SearchByImageResponse>(
+    "/api/v1/items/search-by-image",
+    form,
   );
   return data;
 }
@@ -147,21 +204,27 @@ export async function createItem(
   const form = new FormData();
   form.append("kind", input.kind);
   form.append("title", input.title);
+  form.append("category", input.category);
   if (input.description != null && input.description !== "") {
     form.append("description", input.description);
   }
   if (input.locationText != null && input.locationText !== "") {
     form.append("locationText", input.locationText);
   }
+  if (
+    input.locationLatitude != null &&
+    input.locationLongitude != null &&
+    Number.isFinite(input.locationLatitude) &&
+    Number.isFinite(input.locationLongitude)
+  ) {
+    form.append("locationLatitude", String(input.locationLatitude));
+    form.append("locationLongitude", String(input.locationLongitude));
+  }
   if (input.occurredAt != null && input.occurredAt !== "") {
     form.append("occurredAt", input.occurredAt);
   }
-  form.append("modelVersion", input.modelVersion);
-  form.append("embedding", JSON.stringify(input.embedding));
-  // React Native FormData accepts { uri, name, type } for file fields.
   form.append(
     "image",
-
     {
       uri: input.image.uri,
       name: input.image.name,

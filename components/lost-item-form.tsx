@@ -1,13 +1,10 @@
+import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";
 import type { ItemKind } from "@/lib/api/items";
-import {
-  classifyImageFromUri,
-  disposeMobilenet,
-  initMobilenet,
-} from "@/lib/mobilenet-runner";
+import { analyzeItemImage } from "@/lib/api/items";
 import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
@@ -18,6 +15,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   Modal,
   Pressable,
   StyleSheet,
@@ -29,16 +27,11 @@ import {
 import { useI18n } from "@/providers/i18n-provider";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
+import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
 
-interface ImageLabelPrediction {
-  className: string;
-  probability: number;
-}
-
-interface PredictionResult {
-  className: string;
-  probability: number;
-}
+const SUBMIT_CATEGORY_IDS = new Set<string>(
+  LOST_ITEM_CATEGORY_IDS.filter((id) => id !== "all"),
+);
 
 /** Geometry returned from Place Details (location + optional viewport). */
 interface PlaceGeometry {
@@ -87,8 +80,6 @@ function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
   };
 }
 
-const EMBEDDING_DIM = 1024;
-const MODEL_VERSION = "mobilenet-v1";
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseOccurredAtIso(raw: string): string | undefined {
@@ -131,13 +122,10 @@ export function LostItemForm() {
   const router = useRouter();
   const createItemMutation = useCreateItem();
   const { pendingDraft, consumeDraft } = useFabUploadSheet();
-  const [modelLoaded, setModelLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageMime, setImageMime] = useState("image/jpeg");
-  const [featureVector, setFeatureVector] = useState<number[] | null>(null);
   const [title, setTitle] = useState("");
-  const [predictions, setPredictions] = useState<PredictionResult[]>([]);
   const [time, setTime] = useState("");
   const [pickedOccurredAt, setPickedOccurredAt] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -148,7 +136,6 @@ export function LostItemForm() {
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [lastFeatureDim, setLastFeatureDim] = useState<number | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [placeGeometry, setPlaceGeometry] = useState<PlaceGeometry | null>(
     null,
@@ -162,6 +149,7 @@ export function LostItemForm() {
   const styles = useMemo(() => createLostItemFormStyles(), []);
 
   const [objectHint, setObjectHint] = useState("");
+  const [uploadSheetVisible, setUploadSheetVisible] = useState(false);
 
   const [backendFillSnapshot, setBackendFillSnapshot] = useState<{
     category: string;
@@ -171,30 +159,6 @@ export function LostItemForm() {
   useEffect(() => {
     setObjectHint(t("form.categoryHintDefault"));
   }, [t, locale]);
-
-  useEffect(() => {
-    const prepareModel = async () => {
-      try {
-        setLoading(true);
-        const ok = await initMobilenet();
-        setModelLoaded(ok);
-        if (!ok) {
-          console.error("TensorFlow.js / MobileNet init failed");
-        }
-      } catch (error) {
-        console.error("TensorFlow.js load failed", error);
-        setModelLoaded(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    prepareModel();
-
-    return () => {
-      disposeMobilenet();
-    };
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -236,10 +200,7 @@ export function LostItemForm() {
     if (d.title?.trim()) {
       setTitle(d.title.trim());
     }
-    setFeatureVector(d.featureVector);
-    setPredictions([]);
     setObjectHint(t("form.categoryHintDefault"));
-    setLastFeatureDim(d.featureVector.length);
     setBackendFillSnapshot({
       category: d.category,
       description: d.description,
@@ -250,21 +211,29 @@ export function LostItemForm() {
   const handleClearBackendFill = () => {
     setCategory("");
     setDescription("");
-    setPredictions([]);
     setObjectHint(t("form.categoryHintDefault"));
     setBackendFillSnapshot(null);
   };
 
-  const normalizeClassName = (className: string) => {
-    return className.split(",")[0].replace(/_/g, " ").trim();
+  const handleRemovePhoto = () => {
+    if (loading) {
+      return;
+    }
+    setImageUri(null);
+    setImageMime("image/jpeg");
+    setCategory("");
+    setDescription("");
+    setTitle("");
+    setObjectHint(t("form.categoryHintDefault"));
+    setBackendFillSnapshot(null);
+    setSubmitMessage("");
+    setSubmitError("");
   };
 
   const resetFormState = () => {
     setImageUri(null);
     setImageMime("image/jpeg");
-    setFeatureVector(null);
     setTitle("");
-    setPredictions([]);
     setTime("");
     setPickedOccurredAt(null);
     setShowDatePicker(false);
@@ -275,7 +244,6 @@ export function LostItemForm() {
     setDescription("");
     setSubmitMessage("");
     setSubmitError("");
-    setLastFeatureDim(null);
     setPlaceGeometry(null);
     setObjectHint(t("form.categoryHintDefault"));
     setBackendFillSnapshot(null);
@@ -398,72 +366,25 @@ export function LostItemForm() {
     return locationParts.join(listSep);
   };
 
-  const getCategoryDescription = (className: string) => {
-    const key = className.toLowerCase();
-    const keys = [
-      "dog",
-      "cat",
-      "person",
-      "car",
-      "truck",
-      "boat",
-      "bicycle",
-      "airplane",
-      "banana",
-      "pizza",
-      "apple",
-      "cup",
-    ] as const;
-    for (const match of keys) {
-      if (key.includes(match)) {
-        return t(`mlHint.${match}`);
-      }
-    }
-
-    return t("mlHint.generic", {
-      className: normalizeClassName(className),
-    });
-  };
-
-  const classifyImage = async (uri: string) => {
-    if (!modelLoaded) {
-      return;
-    }
-
+  const analyzePhotoFromUri = async (uri: string, mime: string) => {
     setLoading(true);
-    setPredictions([]);
     setSubmitMessage("");
     setSubmitError("");
-    setFeatureVector(null);
-
     try {
-      const { rawPredictions, featureVector: vec } =
-        await classifyImageFromUri(uri);
-      const formatted: ImageLabelPrediction[] = rawPredictions.map((item) => ({
-        className: item.className,
-        probability: Math.round(item.probability * 10000) / 100,
-      }));
-
-      setLastFeatureDim(vec.length);
-      if (vec.length === EMBEDDING_DIM) {
-        setFeatureVector(vec);
-      } else {
-        setFeatureVector(null);
+      const analysis = await analyzeItemImage({ uri, mime });
+      setCategory(analysis.category);
+      setDescription(analysis.description);
+      if (analysis.title?.trim()) {
+        setTitle(analysis.title.trim());
       }
-
-      setPredictions(formatted);
-
-      if (formatted.length > 0) {
-        const top = formatted[0];
-        const normalized = normalizeClassName(top.className);
-        setCategory(normalized);
-        setObjectHint(getCategoryDescription(top.className));
-      }
+      setObjectHint(t(`categories.${analysis.category}`));
+      setBackendFillSnapshot({
+        category: analysis.category,
+        description: analysis.description,
+      });
     } catch (error) {
-      console.error("Classification error", error);
+      console.error("analyzeItemImage error", error);
       setObjectHint(t("form.classifyFail"));
-      setLastFeatureDim(null);
-      setFeatureVector(null);
     } finally {
       setLoading(false);
     }
@@ -490,7 +411,7 @@ export function LostItemForm() {
     const uri = asset.uri;
     setImageUri(uri);
     setImageMime(asset.mimeType ?? "image/jpeg");
-    await classifyImage(uri);
+    await analyzePhotoFromUri(uri, asset.mimeType ?? "image/jpeg");
   };
 
   const handleTakePhoto = async () => {
@@ -514,17 +435,35 @@ export function LostItemForm() {
     const uri = asset.uri;
     setImageUri(uri);
     setImageMime(asset.mimeType ?? "image/jpeg");
-    await classifyImage(uri);
+    await analyzePhotoFromUri(uri, asset.mimeType ?? "image/jpeg");
   };
+
+  /** Modal 關閉後立刻開相機，在實機上常被系統忽略；等互動／動畫結束並略延遲再開。 */
+  const closeUploadSheetThen = (run: () => void) => {
+    setUploadSheetVisible(false);
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(run, 320);
+    });
+  };
+
+  const handleSheetTakePhoto = () => {
+    closeUploadSheetThen(() => {
+      void handleTakePhoto();
+    });
+  };
+
+  const handleSheetPickLibrary = () => {
+    closeUploadSheetThen(() => {
+      void handlePickFromLibrary();
+    });
+  };
+
+  const uploadSheetScope = kind === "found" ? "foundHome" : "lostHome";
 
   const handleSubmit = () => {
     setSubmitMessage("");
     setSubmitError("");
 
-    if (!modelLoaded) {
-      Alert.alert(t("form.cannotSubmitTitle"), t("form.modelNotReady"));
-      return;
-    }
     if (!imageUri) {
       Alert.alert(t("form.cannotSubmitTitle"), t("form.needImage"));
       return;
@@ -533,8 +472,9 @@ export function LostItemForm() {
       Alert.alert(t("form.cannotSubmitTitle"), t("form.needTitle"));
       return;
     }
-    if (featureVector?.length !== EMBEDDING_DIM) {
-      Alert.alert(t("form.cannotSubmitTitle"), t("form.needEmbedding"));
+    const cat = category.trim();
+    if (!cat || !SUBMIT_CATEGORY_IDS.has(cat)) {
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.needCategory"));
       return;
     }
 
@@ -547,11 +487,16 @@ export function LostItemForm() {
     const formData = {
       kind,
       title: title.trim(),
+      category: cat,
       description: description.trim() || undefined,
       locationText: location.trim() || undefined,
+      ...(placeGeometry != null
+        ? {
+            locationLatitude: placeGeometry.location.lat,
+            locationLongitude: placeGeometry.location.lng,
+          }
+        : {}),
       occurredAt,
-      modelVersion: MODEL_VERSION,
-      embedding: featureVector,
       image: {
         uri: imageUri,
         name: imageMimeToFileName(imageMime),
@@ -698,22 +643,29 @@ export function LostItemForm() {
   const locationLabel =
     kind === "lost" ? t("form.locationLost") : t("form.locationFound");
 
-  let headerRight: React.ReactNode = null;
-  if (backendFillSnapshot != null) {
-    headerRight = (
-      <Pressable onPress={handleClearBackendFill} hitSlop={12}>
-        <ThemedText type="link">{t("form.clearAiFill")}</ThemedText>
-      </Pressable>
-    );
-  }
-
   return (
     <PageLayoutWithHeader
       screenTitle={t("form.screenTitle")}
       screenSubtitle={t("form.screenSubtitle")}
       icon="shippingbox.fill"
-      headerRight={headerRight}
     >
+      {backendFillSnapshot != null ? (
+        <View style={styles.formTopBar}>
+          <Pressable
+            onPress={handleClearBackendFill}
+            hitSlop={12}
+            style={({ pressed }) => [
+              styles.formTopBarClearPressable,
+              pressed ? { opacity: 0.82 } : null,
+            ]}
+          >
+            <IconSymbol name="trash.fill" size={18} color={c.brand} />
+            <ThemedText type="link" style={{ color: c.brand }}>
+              {t("form.clearData")}
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
       <View style={[styles.segmentWrap, { backgroundColor: c.chipBackground }]}>
         <TouchableOpacity
           style={[
@@ -1058,33 +1010,72 @@ export function LostItemForm() {
           </Text>
           <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
+        {imageUri ? (
+          <View
+            style={[
+              styles.photoThumbRow,
+              {
+                borderColor: c.borderSubtle,
+                backgroundColor: c.cardBackground,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.photoThumbWrap,
+                { backgroundColor: c.imagePlaceholder },
+              ]}
+            >
+              <ExpoImage
+                source={{ uri: imageUri }}
+                style={styles.photoThumbImage}
+                contentFit="cover"
+              />
+            </View>
+            <View style={styles.photoThumbSide}>
+              <ThemedText type="caption" style={{ color: c.textMuted }}>
+                {t("form.replacePhotoHint")}
+              </ThemedText>
+              <Pressable
+                onPress={handleRemovePhoto}
+                disabled={loading}
+                style={({ pressed }) => {
+                  let opacity = 1;
+                  if (loading) {
+                    opacity = 0.45;
+                  } else if (pressed) {
+                    opacity = 0.82;
+                  }
+                  return [
+                    styles.removePhotoPressable,
+                    {
+                      borderColor: c.danger,
+                      opacity,
+                    },
+                  ];
+                }}
+              >
+                <IconSymbol name="trash.fill" size={18} color={c.danger} />
+                <Text style={[styles.removePhotoLabel, { color: c.danger }]}>
+                  {t("form.removePhoto")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
         <View style={styles.fileUploadWrapper}>
           <TouchableOpacity
             style={[
               styles.pickImageButton,
+              styles.pickImageButtonFullWidth,
               { backgroundColor: c.brand },
-              (!modelLoaded || loading) && styles.pickImageButtonDisabled,
+              loading && styles.pickImageButtonDisabled,
             ]}
-            onPress={handleTakePhoto}
-            disabled={!modelLoaded || loading}
+            onPress={() => setUploadSheetVisible(true)}
+            disabled={loading}
           >
             <Text style={[styles.pickImageButtonText, { color: c.onBrand }]}>
-              {modelLoaded ? t("form.takePhoto") : t("form.modelLoading")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.pickImageButtonOutline,
-              { borderColor: c.brand },
-              (!modelLoaded || loading) && styles.pickImageButtonDisabled,
-            ]}
-            onPress={handlePickFromLibrary}
-            disabled={!modelLoaded || loading}
-          >
-            <Text
-              style={[styles.pickImageButtonOutlineText, { color: c.brand }]}
-            >
-              {t("form.pickLibrary")}
+              {loading ? t("form.analyzingPhoto") : t("form.uploadImageButton")}
             </Text>
           </TouchableOpacity>
           {loading ? (
@@ -1097,61 +1088,17 @@ export function LostItemForm() {
         </View>
       </View>
 
-      {imageUri ? (
-        <View
-          style={[
-            styles.previewContainer,
-            {
-              borderColor: c.borderSubtle,
-              backgroundColor: c.cardBackground,
-            },
-          ]}
-        >
-          <ExpoImage
-            source={{ uri: imageUri }}
-            style={styles.previewImage}
-            contentFit="contain"
-          />
-        </View>
-      ) : null}
-
-      {predictions.length > 0 ? (
-        <View
-          style={[
-            styles.predictionPanel,
-            {
-              backgroundColor: c.cardBackground,
-              borderColor: c.borderSubtle,
-            },
-          ]}
-        >
-          <ThemedText
-            type="subtitle"
-            style={[styles.predictionTitle, { color: c.textPrimary }]}
-          >
-            {t("form.predictionsTitle")}
-          </ThemedText>
-          {predictions.map((item, index) => (
-            <View key={index} style={styles.predictionItem}>
-              <ThemedText
-                style={[styles.predictionText, { color: c.textPrimary }]}
-              >
-                {index + 1}. {normalizeClassName(item.className)}
-              </ThemedText>
-              <ThemedText
-                style={[styles.probabilityText, { color: c.textMuted }]}
-              >
-                {item.probability}%
-              </ThemedText>
-            </View>
-          ))}
-          {lastFeatureDim != null ? (
-            <ThemedText style={[styles.dbHint, { color: c.textMuted }]}>
-              {t("form.embeddingHint", { dim: String(lastFeatureDim) })}
-            </ThemedText>
-          ) : null}
-        </View>
-      ) : null}
+      <SearchByImageSheet
+        visible={uploadSheetVisible}
+        onClose={() => setUploadSheetVisible(false)}
+        onTakePhoto={handleSheetTakePhoto}
+        onPickLibrary={handleSheetPickLibrary}
+        isBusy={false}
+        statusKind="idle"
+        errorMessage={null}
+        presentation="itemPost"
+        scope={uploadSheetScope}
+      />
 
       <TouchableOpacity
         style={[
@@ -1190,6 +1137,15 @@ function createLostItemFormStyles() {
     container: {
       flex: 1,
       paddingHorizontal: 16,
+    },
+    formTopBar: {
+      width: "100%",
+      alignItems: "flex-end",
+    },
+    formTopBarClearPressable: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
     },
     segmentWrap: {
       flexDirection: "row",
@@ -1270,7 +1226,7 @@ function createLostItemFormStyles() {
     fileUploadWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      flexWrap: "wrap",
+      flexWrap: "nowrap",
       gap: 10,
     },
     pickImageButton: {
@@ -1279,13 +1235,9 @@ function createLostItemFormStyles() {
       borderRadius: 999,
       alignSelf: "flex-start",
     },
-    pickImageButtonOutline: {
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      borderRadius: 999,
-      borderWidth: 2,
-      backgroundColor: "transparent",
-      alignSelf: "flex-start",
+    pickImageButtonFullWidth: {
+      flex: 1,
+      alignSelf: "stretch",
     },
     pickImageButtonDisabled: {
       opacity: 0.55,
@@ -1294,50 +1246,46 @@ function createLostItemFormStyles() {
       fontSize: 15,
       fontWeight: "600",
     },
-    pickImageButtonOutlineText: {
-      fontSize: 15,
-      fontWeight: "600",
-    },
     pickImageSpinner: {
       marginLeft: 4,
     },
-    previewContainer: {
-      borderRadius: 16,
-      overflow: "hidden",
-      borderWidth: StyleSheet.hairlineWidth,
-      marginBottom: 16,
-    },
-    previewImage: {
-      width: "100%",
-      maxHeight: 360,
-    },
-    predictionPanel: {
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: StyleSheet.hairlineWidth,
-      marginBottom: 16,
-    },
-    predictionTitle: {
-      fontSize: 16,
-      fontWeight: "700",
-      marginBottom: 8,
-    },
-    predictionItem: {
+    photoThumbRow: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 4,
+      gap: 14,
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      marginBottom: 12,
     },
-    predictionText: {
+    photoThumbWrap: {
+      width: 96,
+      height: 96,
+      borderRadius: 12,
+      overflow: "hidden",
+    },
+    photoThumbImage: {
+      width: "100%",
+      height: "100%",
+    },
+    photoThumbSide: {
+      flex: 1,
+      gap: 10,
+      minWidth: 0,
+    },
+    removePhotoPressable: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+    removePhotoLabel: {
       fontSize: 15,
-    },
-    probabilityText: {
-      fontSize: 14,
-    },
-    dbHint: {
-      marginTop: 10,
-      fontSize: 12,
-      lineHeight: 18,
+      fontWeight: "600",
     },
     submitButton: {
       paddingVertical: 16,

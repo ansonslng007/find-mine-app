@@ -7,7 +7,6 @@ export type LostItemCategoryId =
   | "keys"
   | "wallet"
   | "bag"
-  | "pet"
   | "other";
 
 export type MockLostItem = {
@@ -31,6 +30,5 @@ export const LOST_ITEM_CATEGORY_IDS: LostItemCategoryId[] = [
   "keys",
   "wallet",
   "bag",
-  "pet",
   "other",
 ];

@@ -13,10 +13,10 @@ import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
-import { useItemsList, useSearchSimilarMutation } from "@/hooks/use-items";
+import { useItemsList, useSearchByImageMutation } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import type { Item, ItemKind } from "@/lib/api/items";
-import { classifyImageFromUri, initMobilenet } from "@/lib/mobilenet-runner";
+import { searchByText } from "@/lib/api/items";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useMemo, useState } from "react";
@@ -34,8 +34,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
-const MODEL_VERSION = "mobilenet-v1";
-const EMBEDDING_DIM = 1024;
 type HomeScope = "lostHome" | "foundHome";
 
 type ItemsHomeProps = Readonly<{
@@ -206,19 +204,15 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [mode, setMode] = useState<"normal" | "similar">("normal");
-  const [busyKind, setBusyKind] = useState<"idle" | "classify" | "search">(
-    "idle",
-  );
+  const [busyKind, setBusyKind] = useState<"idle" | "search">("idle");
   const [imageSearchError, setImageSearchError] = useState<string | null>(null);
+  const [textResults, setTextResults] = useState<Item[] | null>(null);
+  const [textSearchLoading, setTextSearchLoading] = useState(false);
 
   const { data, isPending, isError, error, refetch, isRefetching } =
     useItemsList({ kind });
 
-  const searchSimilarMutation = useSearchSimilarMutation();
-
-  useEffect(() => {
-    initMobilenet().catch(() => {});
-  }, []);
+  const searchByImageMutation = useSearchByImageMutation();
 
   const pageStyles = useMemo(
     () =>
@@ -253,86 +247,118 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     [],
   );
 
-  const filtered = useMemo(() => {
+  const qTrim = query.trim();
+
+  useEffect(() => {
+    if (!qTrim) {
+      setTextResults(null);
+      setTextSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTextSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchByText({ query: qTrim, kind, limit: 50 });
+        if (!cancelled) {
+          setTextResults(res.results.map((r) => r.item));
+        }
+      } catch {
+        if (!cancelled) {
+          setTextResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setTextSearchLoading(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [qTrim, kind]);
+
+  const normalFiltered = useMemo(() => {
     const items = data?.items ?? [];
-    const q = query.trim().toLowerCase();
-    return items.filter((item) => {
-      if (!passesCategoryChip(item, category)) return false;
-      if (!q) return true;
-      const desc = item.description ?? "";
-      const hay = `${item.title} ${desc}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [data?.items, query, category]);
+    return items.filter((item) => passesCategoryChip(item, category));
+  }, [data?.items, category]);
 
   const similarItems = useMemo(
     () =>
-      searchSimilarMutation.data?.results.map((result) => result.item) ?? [],
-    [searchSimilarMutation.data],
+      searchByImageMutation.data?.results.map((result) => result.item) ?? [],
+    [searchByImageMutation.data],
   );
 
+  const imageItemsFiltered = useMemo(
+    () => similarItems.filter((item) => passesCategoryChip(item, category)),
+    [similarItems, category],
+  );
+
+  const textItemsFiltered = useMemo(() => {
+    if (textResults === null) {
+      return null;
+    }
+    return textResults.filter((item) => passesCategoryChip(item, category));
+  }, [textResults, category]);
+
   const listData = useMemo(() => {
+    if (qTrim) {
+      if (textItemsFiltered === null) {
+        return [];
+      }
+      return textItemsFiltered;
+    }
     if (mode === "similar") {
-      return similarItems;
+      return imageItemsFiltered;
     }
     if (isPending || isError) {
       return [];
     }
-    return filtered;
-  }, [mode, similarItems, isPending, isError, filtered]);
+    return normalFiltered;
+  }, [
+    qTrim,
+    textItemsFiltered,
+    mode,
+    imageItemsFiltered,
+    isPending,
+    isError,
+    normalFiltered,
+  ]);
 
   const listShouldGrow = useMemo(() => {
-    if (mode === "similar") {
-      return similarItems.length === 0;
+    if (qTrim) {
+      return listData.length === 0;
     }
-    return isPending || isError || filtered.length === 0;
-  }, [mode, similarItems.length, isPending, isError, filtered.length]);
+    if (mode === "similar") {
+      return imageItemsFiltered.length === 0;
+    }
+    return isPending || isError || normalFiltered.length === 0;
+  }, [
+    qTrim,
+    listData.length,
+    mode,
+    imageItemsFiltered.length,
+    isPending,
+    isError,
+    normalFiltered.length,
+  ]);
 
   const sheetStatusKind: SheetStatusKind =
-    busyKind === "idle" ? "idle" : busyKind;
+    busyKind === "idle" ? "idle" : "search";
 
-  const classifyWithRetry = async (uri: string): Promise<number[]> => {
-    try {
-      const { featureVector } = await classifyImageFromUri(uri);
-      if (featureVector.length !== EMBEDDING_DIM) {
-        throw new Error("embedding_dim");
-      }
-      return featureVector;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("尚未載入")) {
-        await initMobilenet();
-        const { featureVector } = await classifyImageFromUri(uri);
-        if (featureVector.length !== EMBEDDING_DIM) {
-          throw new Error("embedding_dim");
-        }
-        return featureVector;
-      }
-      throw e;
-    }
-  };
-
-  const runImageSearch = async (uri: string) => {
+  const runImageSearch = async (uri: string, mime: string) => {
     setImageSearchError(null);
-    setBusyKind("classify");
-    let embedding: number[];
-    try {
-      embedding = await classifyWithRetry(uri);
-    } catch {
-      setImageSearchError(t("form.classifyFail"));
-      setBusyKind("idle");
-      return;
-    }
-
     setBusyKind("search");
     try {
-      const res = await searchSimilarMutation.mutateAsync({
-        embedding,
-        modelVersion: MODEL_VERSION,
+      await searchByImageMutation.mutateAsync({
+        uri,
+        mime,
         kind,
         limit: 50,
       });
-      console.log("search-similar results:", res.results);
       setMode("similar");
       setIsSheetOpen(false);
     } catch (e) {
@@ -363,7 +389,8 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       return;
     }
 
-    await runImageSearch(result.assets[0].uri);
+    const asset = result.assets[0];
+    await runImageSearch(asset.uri, asset.mimeType ?? "image/jpeg");
   };
 
   const handlePickFromLibrary = async () => {
@@ -383,13 +410,14 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       return;
     }
 
-    await runImageSearch(result.assets[0].uri);
+    const asset = result.assets[0];
+    await runImageSearch(asset.uri, asset.mimeType ?? "image/jpeg");
   };
 
   const handleClearImageSearch = () => {
     setMode("normal");
     setImageSearchError(null);
-    searchSimilarMutation.reset();
+    searchByImageMutation.reset();
   };
 
   const openSearchSheet = () => {
@@ -405,14 +433,26 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     setImageSearchError(null);
   };
 
+  const handleQueryChange = (q: string) => {
+    setQuery(q);
+    if (q.trim()) {
+      setMode("normal");
+      searchByImageMutation.reset();
+    }
+  };
+
   const renderItem = ({ item }: { item: Item }) => <LostItemCard item={item} />;
+
+  const listShowsTextSearch = qTrim.length > 0 && mode !== "similar";
+  const listEmptyPending =
+    isPending || (listShowsTextSearch && textSearchLoading);
 
   const listEmpty = (
     <HomeListEmpty
       mode={mode}
       centerBlockStyle={pageStyles.centerBlock}
       emptyTextStyle={pageStyles.empty}
-      isPending={isPending}
+      isPending={listEmptyPending}
       isError={isError}
       error={error}
       onRetry={() => refetch()}
@@ -434,7 +474,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     >
       <SearchFilterRow
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={handleQueryChange}
         onPressSearchByImage={openSearchSheet}
         isCategoryExpanded={isCategoryExpanded}
         onToggleCategoryExpanded={() => setIsCategoryExpanded((prev) => !prev)}
@@ -455,12 +495,12 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         scope={scope}
       />
 
-      {mode === "similar" ? (
+      {mode === "similar" && !qTrim ? (
         <ImageSearchBanner
           onClear={handleClearImageSearch}
           bannerStyle={pageStyles.imageSearchBanner}
           screenT={homeT}
-          resultCount={similarItems.length}
+          resultCount={imageItemsFiltered.length}
         />
       ) : null}
 

@@ -47,7 +47,25 @@ export function truncate(s: string, max: number): string {
 
 export type ItemCategoryId = Exclude<LostItemCategoryId, "all">;
 
+const CATEGORY_IDS_NO_ALL = new Set<string>(
+  (
+    [
+      "electronics",
+      "clothing",
+      "accessories",
+      "documents",
+      "keys",
+      "wallet",
+      "bag",
+      "other",
+    ] as const
+  ).map((s) => s),
+);
+
 export function inferItemCategoryId(item: Item): ItemCategoryId {
+  if (item.category && CATEGORY_IDS_NO_ALL.has(item.category)) {
+    return item.category as ItemCategoryId;
+  }
   const blob = `${item.title} ${item.description ?? ""}`.toLowerCase();
   if (
     /iphone|airpods|ipad|手機|耳機|筆電|laptop|phone|電子|充電|pixel|samsung|macbook/.test(
@@ -55,9 +73,6 @@ export function inferItemCategoryId(item: Item): ItemCategoryId {
     )
   ) {
     return "electronics";
-  }
-  if (/貓|狗|寵物|項圈|柴犬|虎斑|貓咪/.test(blob)) {
-    return "pet";
   }
   if (/鑰匙|key/.test(blob)) {
     return "keys";
@@ -85,7 +100,6 @@ export function passesCategoryChip(
   category: LostItemCategoryId,
 ): boolean {
   if (category === "all") return true;
-  const tagged = item as Item & { category?: LostItemCategoryId };
-  if (tagged.category === undefined) return true;
-  return tagged.category === category;
+  const id = inferItemCategoryId(item);
+  return id === category;
 }

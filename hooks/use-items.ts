@@ -1,9 +1,11 @@
 import {
   getItem,
   listItems,
-  searchSimilar,
+  searchByImage,
+  searchByText,
   type ListItemsParams,
-  type SearchSimilarParams,
+  type SearchByImageParams,
+  type SearchByTextParams,
 } from "@/lib/api/items";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
@@ -26,8 +28,14 @@ export function useItemsList(params?: ListItemsParams) {
   });
 }
 
-export function useSearchSimilarMutation() {
+export function useSearchByTextMutation() {
   return useMutation({
-    mutationFn: (params: SearchSimilarParams) => searchSimilar(params),
+    mutationFn: (params: SearchByTextParams) => searchByText(params),
+  });
+}
+
+export function useSearchByImageMutation() {
+  return useMutation({
+    mutationFn: (params: SearchByImageParams) => searchByImage(params),
   });
 }
