@@ -44,6 +44,7 @@ const MAPPING = {
   "arrow.counterclockwise": "undo",
   "bubble.left.and.bubble.right": "chat-bubble-outline",
   "arrow.up.circle.fill": "arrow-circle-up",
+  "trash.fill": "delete-outline",
 } as IconMapping;
 
 /**

@@ -5,10 +5,6 @@ import {
 import { PillButton } from "@/components/ui/pill-button";
 import { ApiError } from "@/lib/api/client";
 import { analyzeItemImage } from "@/lib/api/items";
-import {
-  inferFeatureVectorFromUri,
-  initMobilenet,
-} from "@/lib/mobilenet-runner";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -16,13 +12,10 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
 import { Alert, StyleSheet, View } from "react-native";
-
-const EMBEDDING_DIM = 1024;
 
 export type FabFormDraft = Readonly<{
   imageUri: string;
@@ -30,7 +23,6 @@ export type FabFormDraft = Readonly<{
   category: string;
   description: string;
   title?: string;
-  featureVector: number[];
 }>;
 
 type FabUploadContextValue = Readonly<{
@@ -51,7 +43,7 @@ export function useFabUploadSheet(): FabUploadContextValue {
   return ctx;
 }
 
-type BusyPhase = "idle" | "model" | "analyze";
+type BusyPhase = "idle" | "analyze";
 
 type FabUploadSheetProviderProps = Readonly<{
   children: React.ReactNode;
@@ -66,10 +58,6 @@ export function FabUploadSheetProvider({
   const [busyPhase, setBusyPhase] = useState<BusyPhase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<FabFormDraft | null>(null);
-
-  useEffect(() => {
-    initMobilenet().catch(() => {});
-  }, []);
 
   const consumeDraft = useCallback(() => {
     setPendingDraft(null);
@@ -88,62 +76,17 @@ export function FabUploadSheetProvider({
     setErrorMessage(null);
   }, [busyPhase]);
 
-  const ensureModel = async (): Promise<void> => {
-    try {
-      const ok = await initMobilenet();
-      if (!ok) {
-        throw new Error("model_init");
-      }
-    } catch {
-      throw new Error("model_init");
-    }
-  };
-
-  const inferWithRetry = async (uri: string): Promise<number[]> => {
-    try {
-      const vec = await inferFeatureVectorFromUri(uri);
-      if (vec.length !== EMBEDDING_DIM) {
-        throw new Error("embedding_dim");
-      }
-      return vec;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg.includes("Model not loaded")) {
-        await ensureModel();
-        const vec = await inferFeatureVectorFromUri(uri);
-        if (vec.length !== EMBEDDING_DIM) {
-          throw new Error("embedding_dim");
-        }
-        return vec;
-      }
-      throw e;
-    }
-  };
-
   const runAfterPick = async (uri: string, mime: string) => {
     setErrorMessage(null);
-    setBusyPhase("model");
-    try {
-      await ensureModel();
-    } catch {
-      setErrorMessage(t("fabUpload.modelLoadFailed"));
-      setBusyPhase("idle");
-      return;
-    }
-
     setBusyPhase("analyze");
     try {
-      const [analysis, featureVector] = await Promise.all([
-        analyzeItemImage({ uri, mime }),
-        inferWithRetry(uri),
-      ]);
+      const analysis = await analyzeItemImage({ uri, mime });
       setPendingDraft({
         imageUri: uri,
         imageMime: mime,
         category: analysis.category,
         description: analysis.description,
         title: analysis.title,
-        featureVector,
       });
       setVisible(false);
       setBusyPhase("idle");
@@ -215,9 +158,7 @@ export function FabUploadSheetProvider({
 
   const isBusy = busyPhase !== "idle";
   let statusKind: SheetStatusKind = "idle";
-  if (busyPhase === "model") {
-    statusKind = "model";
-  } else if (busyPhase === "analyze") {
+  if (busyPhase === "analyze") {
     statusKind = "analyze";
   }
 

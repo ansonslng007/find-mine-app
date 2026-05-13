@@ -224,7 +224,7 @@ export const en = {
   },
   form: {
     categoryHintDefault: "Upload a photo to auto-fill the category.",
-    clearAiFill: "Clear AI-filled fields",
+    clearData: "Clear data",
     classifyFail:
       "Classification failed. Use a common format such as JPEG or PNG and try again.",
     permGalleryTitle: "Permission needed",
@@ -232,11 +232,18 @@ export const en = {
     permCameraTitle: "Permission needed",
     permCameraBody: "Camera access is required to take a photo.",
     cannotSubmitTitle: "Cannot submit",
-    modelNotReady: "The model is still loading. Please wait.",
     needImage: "Take a photo or pick an image from your library first.",
     needTitle: "Please enter a title / item name.",
-    needEmbedding:
-      "No valid image embedding yet. Upload a photo and wait for recognition to finish.",
+    needCategory:
+      "Enter a valid category id (upload a photo for auto-fill, or type an English category code).",
+    analyzingPhoto: "Analyzing photo…",
+    uploadImageButton: "Upload image",
+    uploadImageSheetTitle: "Upload item photo",
+    uploadImageSheetHint:
+      "Take a photo or pick from your library. Category and description will be filled automatically.",
+    removePhoto: "Remove photo",
+    replacePhotoHint:
+      "Tap Upload image again to replace. After removing, upload again to re-run recognition.",
     permLocationTitle: "Permission needed",
     permLocationBody: "Location access is required to use current GPS.",
     locationFailedTitle: "Location failed",
