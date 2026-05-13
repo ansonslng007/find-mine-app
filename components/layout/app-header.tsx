@@ -10,12 +10,14 @@ export type AppHeaderProps = Readonly<{
   screenTitle: string;
   screenSubtitle: string;
   icon: ComponentProps<typeof IconSymbol>["name"];
+  headerRight?: React.ReactNode;
 }>;
 
 export function AppHeader({
   screenTitle,
   screenSubtitle,
   icon,
+  headerRight,
 }: AppHeaderProps) {
   const c = useAppColors();
   const styles = useMemo(
@@ -60,6 +62,7 @@ export function AppHeader({
           <ThemedText type="screenTitle">{screenTitle}</ThemedText>
           <ThemedText type="screenSubtitle">{screenSubtitle}</ThemedText>
         </View>
+        {headerRight}
       </View>
     </View>
   );

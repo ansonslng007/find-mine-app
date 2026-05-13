@@ -87,3 +87,35 @@ export async function classifyImageFromUri(uri: string): Promise<{
     imageTensor.dispose();
   }
 }
+
+/** Same preprocessing as classify, but only runs MobileNet inference (no top-k labels). */
+export async function inferFeatureVectorFromUri(uri: string): Promise<number[]> {
+  if (!modelRef) {
+    throw new Error("Model not loaded yet");
+  }
+
+  const { decodeJpeg } = await import("@tridipdas13/tfjs-react-native");
+
+  const { uri: jpegUri } = await ImageManipulator.manipulateAsync(uri, [], {
+    compress: 0.92,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+
+  const base64 = await readAsStringAsync(jpegUri, {
+    encoding: EncodingType.Base64,
+  });
+  const jpegBytes = base64ToUint8Array(base64);
+  const imageTensor = decodeJpeg(jpegBytes, 3);
+
+  try {
+    const embeddingTensor = modelRef.infer(imageTensor, true);
+    try {
+      const raw = await embeddingTensor.data();
+      return Array.from(raw);
+    } finally {
+      embeddingTensor.dispose();
+    }
+  } finally {
+    imageTensor.dispose();
+  }
+}
