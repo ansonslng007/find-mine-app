@@ -14,6 +14,15 @@ export const zhHant = {
     chat: "聊天",
     profile: "個人",
   },
+  fabUpload: {
+    uploadImageTitle: "上傳圖片",
+    sheetHint:
+      "拍照或從相簿選擇照片，由伺服器分析物品類別並產生描述，用於填寫刊登表單。",
+    goToForm: "進入表格",
+    analyzingImage: "分析影像中…",
+    modelLoadFailed: "無法載入影像模型，請稍後再試。",
+    needSignIn: "請先登入再上傳分析。",
+  },
   lostHome: {
     title: "失物",
     subtitle: "一起找回遺失物",
@@ -174,7 +183,6 @@ export const zhHant = {
     keys: "鑰匙",
     wallet: "錢包",
     bag: "提袋",
-    pet: "寵物",
     other: "其他",
   },
   mlHint: {
@@ -208,6 +216,7 @@ export const zhHant = {
   },
   form: {
     categoryHintDefault: "請上傳圖片後，自動填入分類類別。",
+    clearAiFill: "清除分析填入",
     classifyFail: "分類失敗，請確認為 JPEG/PNG 等常見格式後再試。",
     permGalleryTitle: "權限不足",
     permGalleryBody: "需要相簿權限才能選擇圖片。",

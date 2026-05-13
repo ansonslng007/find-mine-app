@@ -108,6 +108,39 @@ export async function searchSimilar(
   return data;
 }
 
+export type AnalyzeItemImageResponse = {
+  category: string;
+  description: string;
+  title?: string;
+};
+
+export async function analyzeItemImage(input: {
+  uri: string;
+  mime: string;
+}): Promise<AnalyzeItemImageResponse> {
+  const form = new FormData();
+  form.append(
+    "image",
+    {
+      uri: input.uri,
+      name: imageMimeToUploadName(input.mime),
+      type: input.mime || "image/jpeg",
+    } as any,
+  );
+  const { data } = await apiClient.post<AnalyzeItemImageResponse>(
+    "/api/v1/items/analyze-image",
+    form,
+  );
+  return data;
+}
+
+function imageMimeToUploadName(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m.includes("png")) return "upload.png";
+  if (m.includes("webp")) return "upload.webp";
+  return "upload.jpg";
+}
+
 export async function createItem(
   input: CreateItemInput,
 ): Promise<CreateItemResponse> {

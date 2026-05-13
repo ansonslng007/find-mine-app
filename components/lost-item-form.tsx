@@ -8,6 +8,7 @@ import {
   disposeMobilenet,
   initMobilenet,
 } from "@/lib/mobilenet-runner";
+import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -129,6 +130,7 @@ function imageMimeToFileName(mime: string): string {
 export function LostItemForm() {
   const router = useRouter();
   const createItemMutation = useCreateItem();
+  const { pendingDraft, consumeDraft } = useFabUploadSheet();
   const [modelLoaded, setModelLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -160,6 +162,11 @@ export function LostItemForm() {
   const styles = useMemo(() => createLostItemFormStyles(), []);
 
   const [objectHint, setObjectHint] = useState("");
+
+  const [backendFillSnapshot, setBackendFillSnapshot] = useState<{
+    category: string;
+    description: string;
+  } | null>(null);
 
   useEffect(() => {
     setObjectHint(t("form.categoryHintDefault"));
@@ -217,6 +224,37 @@ export function LostItemForm() {
     initializeLocation();
   }, []);
 
+  useEffect(() => {
+    if (!pendingDraft) {
+      return;
+    }
+    const d = pendingDraft;
+    setImageUri(d.imageUri);
+    setImageMime(d.imageMime);
+    setCategory(d.category);
+    setDescription(d.description);
+    if (d.title?.trim()) {
+      setTitle(d.title.trim());
+    }
+    setFeatureVector(d.featureVector);
+    setPredictions([]);
+    setObjectHint(t("form.categoryHintDefault"));
+    setLastFeatureDim(d.featureVector.length);
+    setBackendFillSnapshot({
+      category: d.category,
+      description: d.description,
+    });
+    consumeDraft();
+  }, [pendingDraft, consumeDraft, t]);
+
+  const handleClearBackendFill = () => {
+    setCategory("");
+    setDescription("");
+    setPredictions([]);
+    setObjectHint(t("form.categoryHintDefault"));
+    setBackendFillSnapshot(null);
+  };
+
   const normalizeClassName = (className: string) => {
     return className.split(",")[0].replace(/_/g, " ").trim();
   };
@@ -240,6 +278,7 @@ export function LostItemForm() {
     setLastFeatureDim(null);
     setPlaceGeometry(null);
     setObjectHint(t("form.categoryHintDefault"));
+    setBackendFillSnapshot(null);
   };
 
   const handleOpenDatePicker = () => {
@@ -659,11 +698,21 @@ export function LostItemForm() {
   const locationLabel =
     kind === "lost" ? t("form.locationLost") : t("form.locationFound");
 
+  let headerRight: React.ReactNode = null;
+  if (backendFillSnapshot != null) {
+    headerRight = (
+      <Pressable onPress={handleClearBackendFill} hitSlop={12}>
+        <ThemedText type="link">{t("form.clearAiFill")}</ThemedText>
+      </Pressable>
+    );
+  }
+
   return (
     <PageLayoutWithHeader
       screenTitle={t("form.screenTitle")}
       screenSubtitle={t("form.screenSubtitle")}
       icon="shippingbox.fill"
+      headerRight={headerRight}
     >
       <View style={[styles.segmentWrap, { backgroundColor: c.chipBackground }]}>
         <TouchableOpacity

@@ -1,11 +1,14 @@
+import type { TranslateFn } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import type { TranslateFn } from "@/components/lost-items/format";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useI18n } from "@/providers/i18n-provider";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  Easing,
   Modal,
   Pressable,
   StyleSheet,
@@ -16,7 +19,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const LIBRARY_PURPLE = "#7C3AED";
 
-export type SheetStatusKind = "idle" | "model" | "classify" | "search";
+export type SheetStatusKind =
+  | "idle"
+  | "model"
+  | "classify"
+  | "search"
+  | "analyze";
 
 type SheetStatusProps = Readonly<{
   statusKind: SheetStatusKind;
@@ -24,6 +32,7 @@ type SheetStatusProps = Readonly<{
   brandColor: string;
   rowStyle: ViewStyle;
   screenT: TranslateFn;
+  analyzeLabel: string;
 }>;
 
 function SheetStatus({
@@ -32,6 +41,7 @@ function SheetStatus({
   brandColor,
   rowStyle,
   screenT,
+  analyzeLabel,
 }: SheetStatusProps) {
   if (errorMessage) {
     return (
@@ -68,6 +78,15 @@ function SheetStatus({
     );
   }
 
+  if (statusKind === "analyze") {
+    return (
+      <View style={rowStyle}>
+        <ActivityIndicator color={brandColor} />
+        <ThemedText type="bodyMuted">{analyzeLabel}</ThemedText>
+      </View>
+    );
+  }
+
   return null;
 }
 
@@ -79,7 +98,11 @@ type Props = Readonly<{
   isBusy: boolean;
   statusKind: SheetStatusKind;
   errorMessage: string | null;
-  scope: "lostHome" | "foundHome";
+  /** 列表「以圖搜尋」用 `listSearch` 並傳 `scope`；FAB 用 `fabUpload`。 */
+  presentation?: "listSearch" | "fabUpload";
+  /** `listSearch` 時必填，用於相機／相簿等共用文案。 */
+  scope?: "lostHome" | "foundHome";
+  fabFooter?: React.ReactNode;
 }>;
 
 export function SearchByImageSheet({
@@ -90,12 +113,37 @@ export function SearchByImageSheet({
   isBusy,
   statusKind,
   errorMessage,
-  scope,
+  presentation = "listSearch",
+  scope = "lostHome",
+  fabFooter,
 }: Props) {
   const c = useAppColors();
   const { t } = useI18n();
   const screenT = (key: string) => t(`${scope}.${key}`);
   const insets = useSafeAreaInsets();
+  const isFab = presentation === "fabUpload";
+
+  const sheetTranslateY = useRef(
+    new Animated.Value(Dimensions.get("window").height),
+  ).current;
+
+  useEffect(() => {
+    const windowH = Dimensions.get("window").height;
+    if (!visible) {
+      sheetTranslateY.setValue(windowH);
+      return;
+    }
+    sheetTranslateY.setValue(windowH);
+    const id = requestAnimationFrame(() => {
+      Animated.timing(sheetTranslateY, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [visible, sheetTranslateY]);
 
   const styles = useMemo(
     () =>
@@ -189,11 +237,19 @@ export function SearchByImageSheet({
 
   const busyOrError = isBusy || Boolean(errorMessage);
 
+  const titleText = isFab
+    ? t("fabUpload.uploadImageTitle")
+    : screenT("searchByImageTitle");
+  const hintText = isFab
+    ? t("fabUpload.sheetHint")
+    : screenT("searchByImageHint");
+  const hintIcon = isFab ? ("photo.on.rectangle" as const) : ("magnifyingglass" as const);
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={isBusy ? () => {} : onClose}
     >
       <View style={styles.root}>
@@ -202,10 +258,10 @@ export function SearchByImageSheet({
           onPress={isBusy ? undefined : onClose}
           disabled={isBusy}
         />
-        <View style={styles.sheet}>
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
           <View style={styles.headerRow}>
             <View style={styles.headerTitle}>
-              <ThemedText type="screenTitle">{screenT("searchByImageTitle")}</ThemedText>
+              <ThemedText type="screenTitle">{titleText}</ThemedText>
             </View>
             <Pressable
               style={styles.closeHit}
@@ -261,21 +317,24 @@ export function SearchByImageSheet({
             </Pressable>
           </View>
 
+          {fabFooter}
+
           <SheetStatus
             statusKind={statusKind}
             errorMessage={errorMessage}
             brandColor={c.brand}
             rowStyle={styles.statusRow}
             screenT={screenT}
+            analyzeLabel={t("fabUpload.analyzingImage")}
           />
 
           <View style={styles.hintBox}>
-            <IconSymbol name="magnifyingglass" size={20} color={c.textMuted} />
+            <IconSymbol name={hintIcon} size={20} color={c.textMuted} />
             <ThemedText type="bodyMuted" style={{ flex: 1 }}>
-              {screenT("searchByImageHint")}
+              {hintText}
             </ThemedText>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

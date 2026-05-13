@@ -14,6 +14,15 @@ export const en = {
     chat: "Chats",
     profile: "Profile",
   },
+  fabUpload: {
+    uploadImageTitle: "Upload image",
+    sheetHint:
+      "Take a photo or pick from your library. The server will suggest a category and description for your listing.",
+    goToForm: "Open form",
+    analyzingImage: "Analyzing image…",
+    modelLoadFailed: "Could not load the on-device image model. Try again.",
+    needSignIn: "Please sign in to analyze images.",
+  },
   lostHome: {
     title: "Lost items",
     subtitle: "Let’s find what was lost",
@@ -113,10 +122,12 @@ export const en = {
       "Next time you can sign in with Face ID or fingerprint without typing your password.",
     biometricEnableConfirm: "Enable",
     biometricErrors: {
-      failed: "Could not verify your identity. Try again or sign in with password.",
+      failed:
+        "Could not verify your identity. Try again or sign in with password.",
       notEnrolled: "No Face ID or fingerprint is set up on this device.",
       lockout: "Too many attempts. Try again later or sign in with password.",
-      passcodeNotSet: "Set a device passcode and enroll Face ID or fingerprint first.",
+      passcodeNotSet:
+        "Set a device passcode and enroll Face ID or fingerprint first.",
       missingUsageDescription:
         "App is missing Face ID permission (NSFaceIDUsageDescription). Please rebuild your native Dev Client.",
       notAvailable:
@@ -124,7 +135,8 @@ export const en = {
       unableToProcess:
         "Verification did not complete. Try again or sign in with password.",
       timeout: "Verification timed out. Try again or sign in with password.",
-      noSpace: "Verification could not complete. Try again later or sign in with password.",
+      noSpace:
+        "Verification could not complete. Try again later or sign in with password.",
     },
   },
   settings: {
@@ -179,7 +191,6 @@ export const en = {
     keys: "Keys",
     wallet: "Wallet",
     bag: "Bag",
-    pet: "Pet",
     other: "Other",
   },
   mlHint: {
@@ -213,6 +224,7 @@ export const en = {
   },
   form: {
     categoryHintDefault: "Upload a photo to auto-fill the category.",
+    clearAiFill: "Clear AI-filled fields",
     classifyFail:
       "Classification failed. Use a common format such as JPEG or PNG and try again.",
     permGalleryTitle: "Permission needed",

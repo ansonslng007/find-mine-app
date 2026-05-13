@@ -8,6 +8,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useChatUnreadCount } from "@/hooks/use-chat-unread-count";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { FabUploadSheetProvider } from "@/providers/fab-upload-sheet-provider";
 import { useI18n } from "@/providers/i18n-provider";
 
 export default function TabLayout() {
@@ -24,7 +25,8 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
+    <FabUploadSheetProvider>
+      <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.tint,
         tabBarInactiveTintColor: theme.tabIconDefault,
@@ -82,5 +84,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </FabUploadSheetProvider>
   );
 }
