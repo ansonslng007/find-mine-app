@@ -41,6 +41,7 @@ const MAPPING = {
   "moon.fill": "dark-mode",
   globe: "language",
   "chevron.left": "chevron-left",
+  "location.fill": "my-location",
   "arrow.counterclockwise": "undo",
   "bubble.left.and.bubble.right": "chat-bubble-outline",
   "arrow.up.circle.fill": "arrow-circle-up",

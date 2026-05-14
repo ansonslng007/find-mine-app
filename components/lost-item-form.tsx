@@ -1,4 +1,5 @@
 import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
+import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
@@ -140,6 +141,7 @@ export function LostItemForm() {
   const [placeGeometry, setPlaceGeometry] = useState<PlaceGeometry | null>(
     null,
   );
+  const [mapPickVisible, setMapPickVisible] = useState(false);
   const [
     GooglePlacesAutocompleteComponent,
     setGooglePlacesAutocompleteComponent,
@@ -245,6 +247,7 @@ export function LostItemForm() {
     setSubmitMessage("");
     setSubmitError("");
     setPlaceGeometry(null);
+    setMapPickVisible(false);
     setObjectHint(t("form.categoryHintDefault"));
     setBackendFillSnapshot(null);
   };
@@ -839,6 +842,20 @@ export function LostItemForm() {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[
+            styles.pickOnMapButton,
+            { borderColor: c.brand, backgroundColor: c.cardBackground },
+          ]}
+          onPress={() => setMapPickVisible(true)}
+          activeOpacity={0.85}
+        >
+          <IconSymbol name="map" size={18} color={c.brand} />
+          <Text style={[styles.pickOnMapButtonText, { color: c.brand }]}>
+            {t("form.pickOnMap")}
+          </Text>
+        </TouchableOpacity>
+
         <View
           style={[
             styles.autocompleteContainer,
@@ -1087,6 +1104,28 @@ export function LostItemForm() {
           ) : null}
         </View>
       </View>
+
+      <MapPickLocationModal
+        visible={mapPickVisible}
+        onClose={() => setMapPickVisible(false)}
+        onConfirm={(p) => {
+          setLocation(p.addressLabel);
+          setPlaceGeometry({ location: { lat: p.lat, lng: p.lng } });
+          setMapPickVisible(false);
+        }}
+        initialCenter={placeGeometry?.location ?? null}
+        formatAddressFromNominatim={generateReadableAddressFromNominatim}
+        title={t("form.mapPickTitle")}
+        confirmLabel={t("form.mapPickConfirm")}
+        addressLoadingLabel={t("form.mapPickAddressLoading")}
+        reverseFailLabel={t("form.mapPickReverseFail")}
+        dragHint={t("form.mapPickDragHint")}
+        pinHint={t("form.mapPickPinHint")}
+        permissionDeniedTitle={t("form.permLocationTitle")}
+        permissionDeniedBody={t("form.permLocationBody")}
+        locationFailedTitle={t("form.locationFailedTitle")}
+        locationFailedBody={t("form.locationFailedBody")}
+      />
 
       <SearchByImageSheet
         visible={uploadSheetVisible}
@@ -1341,6 +1380,21 @@ function createLostItemFormStyles() {
       justifyContent: "center",
     },
     useCurrentLocationButtonText: {
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    pickOnMapButton: {
+      marginTop: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 999,
+      borderWidth: 2,
+    },
+    pickOnMapButtonText: {
       fontSize: 14,
       fontWeight: "700",
     },
