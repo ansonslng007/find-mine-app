@@ -97,6 +97,10 @@ export type SearchByTextParams = {
   query: string;
   kind?: ItemKind;
   limit?: number;
+  /** Default true: vector recall + lexical RRF. */
+  hybrid?: boolean;
+  /** Vector candidate count before fusion (50–200); server clamps to at least `limit`. */
+  recallLimit?: number;
 };
 
 export type SearchByTextResult = {
@@ -112,13 +116,22 @@ export type SearchByTextResponse = {
 export async function searchByText(
   params: SearchByTextParams,
 ): Promise<SearchByTextResponse> {
+  const body: Record<string, unknown> = { query: params.query };
+  if (params.kind !== undefined) {
+    body.kind = params.kind;
+  }
+  if (params.limit !== undefined) {
+    body.limit = params.limit;
+  }
+  if (params.hybrid !== undefined) {
+    body.hybrid = params.hybrid;
+  }
+  if (params.recallLimit !== undefined) {
+    body.recallLimit = params.recallLimit;
+  }
   const { data } = await apiClient.post<SearchByTextResponse>(
     "/api/v1/items/search-by-text",
-    {
-      query: params.query,
-      kind: params.kind,
-      limit: params.limit,
-    },
+    body,
   );
   return data;
 }

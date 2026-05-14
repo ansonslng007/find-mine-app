@@ -266,6 +266,15 @@ export const en = {
     timeAfterToday: "Date cannot be later than today.",
     useGps: "Use current location (GPS)",
     placesPlaceholder: "Search Hong Kong address or place",
+    pickOnMap: "Pick on map",
+    mapPickTitle: "Pick location on map",
+    mapPickConfirm: "Confirm this location",
+    mapPickAddressLoading: "Resolving address…",
+    mapPickReverseFail: "Could not resolve address; coordinates can still be saved.",
+    mapPickDragHint:
+      "Drag the map so the pin points at the spot. Top-right jumps to your current location.",
+    mapPickPinHint:
+      "Drag the map to move the target. The address appears after you adjust the pin.",
     selectedPrefix: "Selected:",
     coordsLine: "Coordinates — lat %{lat}, lng %{lng}",
     categoryLabel: "Category",

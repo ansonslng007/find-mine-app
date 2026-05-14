@@ -117,7 +117,7 @@ function SimilarItemsEmpty({
 }
 
 type HomeListEmptyProps = Readonly<{
-  mode: "normal" | "similar";
+  mode: "normal" | "similar" | "combined";
   centerBlockStyle: ViewStyle;
   emptyTextStyle: TextStyle;
   isPending: boolean;
@@ -143,6 +143,15 @@ function HomeListEmpty({
   t,
   screenT,
 }: HomeListEmptyProps) {
+  if (isPending) {
+    return (
+      <View style={centerBlockStyle}>
+        <ActivityIndicator size="large" color={brandColor} />
+        <ThemedText type="bodyMuted">{screenT("loading")}</ThemedText>
+      </View>
+    );
+  }
+
   if (mode === "similar") {
     return (
       <SimilarItemsEmpty
@@ -153,9 +162,19 @@ function HomeListEmpty({
     );
   }
 
+  if (mode === "combined") {
+    return (
+      <View style={centerBlockStyle}>
+        <ThemedText type="bodyMuted" style={emptyTextStyle}>
+          {screenT("empty")}
+        </ThemedText>
+      </View>
+    );
+  }
+
   return (
     <LostItemsListEmpty
-      isPending={isPending}
+      isPending={false}
       isError={isError}
       error={error}
       onRetry={onRetry}
@@ -203,7 +222,6 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const [category, setCategory] = useState<LostItemCategoryId>("all");
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [mode, setMode] = useState<"normal" | "similar">("normal");
   const [busyKind, setBusyKind] = useState<"idle" | "search">("idle");
   const [imageSearchError, setImageSearchError] = useState<string | null>(null);
   const [textResults, setTextResults] = useState<Item[] | null>(null);
@@ -292,6 +310,8 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     [searchByImageMutation.data],
   );
 
+  const hasImageSearch = searchByImageMutation.data != null;
+
   const imageItemsFiltered = useMemo(
     () => similarItems.filter((item) => passesCategoryChip(item, category)),
     [similarItems, category],
@@ -304,14 +324,20 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     return textResults.filter((item) => passesCategoryChip(item, category));
   }, [textResults, category]);
 
+  const hasTextSearch = qTrim.length > 0;
+
   const listData = useMemo(() => {
-    if (qTrim) {
+    if (hasTextSearch) {
       if (textItemsFiltered === null) {
         return [];
       }
+      if (hasImageSearch) {
+        const imageIds = new Set(imageItemsFiltered.map((it) => it.id));
+        return textItemsFiltered.filter((it) => imageIds.has(it.id));
+      }
       return textItemsFiltered;
     }
-    if (mode === "similar") {
+    if (hasImageSearch) {
       return imageItemsFiltered;
     }
     if (isPending || isError) {
@@ -319,28 +345,34 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     }
     return normalFiltered;
   }, [
-    qTrim,
+    hasTextSearch,
+    hasImageSearch,
     textItemsFiltered,
-    mode,
     imageItemsFiltered,
     isPending,
     isError,
     normalFiltered,
   ]);
 
-  const listShouldGrow = useMemo(() => {
-    if (qTrim) {
-      return listData.length === 0;
+  const listEmptyMode: "normal" | "similar" | "combined" = useMemo(() => {
+    if (hasTextSearch && hasImageSearch) {
+      return "combined";
     }
-    if (mode === "similar") {
-      return imageItemsFiltered.length === 0;
+    if (hasImageSearch) {
+      return "similar";
+    }
+    return "normal";
+  }, [hasTextSearch, hasImageSearch]);
+
+  const listShouldGrow = useMemo(() => {
+    if (hasTextSearch || hasImageSearch) {
+      return listData.length === 0;
     }
     return isPending || isError || normalFiltered.length === 0;
   }, [
-    qTrim,
+    hasTextSearch,
+    hasImageSearch,
     listData.length,
-    mode,
-    imageItemsFiltered.length,
     isPending,
     isError,
     normalFiltered.length,
@@ -359,7 +391,6 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         kind,
         limit: 50,
       });
-      setMode("similar");
       setIsSheetOpen(false);
     } catch (e) {
       if (e instanceof ApiError) {
@@ -415,7 +446,6 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   };
 
   const handleClearImageSearch = () => {
-    setMode("normal");
     setImageSearchError(null);
     searchByImageMutation.reset();
   };
@@ -435,21 +465,17 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
 
   const handleQueryChange = (q: string) => {
     setQuery(q);
-    if (q.trim()) {
-      setMode("normal");
-      searchByImageMutation.reset();
-    }
   };
 
   const renderItem = ({ item }: { item: Item }) => <LostItemCard item={item} />;
 
-  const listShowsTextSearch = qTrim.length > 0 && mode !== "similar";
+  const listShowsTextSearch = hasTextSearch;
   const listEmptyPending =
     isPending || (listShowsTextSearch && textSearchLoading);
 
   const listEmpty = (
     <HomeListEmpty
-      mode={mode}
+      mode={listEmptyMode}
       centerBlockStyle={pageStyles.centerBlock}
       emptyTextStyle={pageStyles.empty}
       isPending={listEmptyPending}
@@ -495,12 +521,12 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         scope={scope}
       />
 
-      {mode === "similar" && !qTrim ? (
+      {hasImageSearch ? (
         <ImageSearchBanner
           onClear={handleClearImageSearch}
           bannerStyle={pageStyles.imageSearchBanner}
           screenT={homeT}
-          resultCount={imageItemsFiltered.length}
+          resultCount={listData.length}
         />
       ) : null}
 
