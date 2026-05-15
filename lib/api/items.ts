@@ -54,6 +54,15 @@ export type ListItemsParams = {
   kind?: ItemKind;
   limit?: number;
   offset?: number;
+  /** ISO 8601: occurred_at >= this. */
+  occurredAfter?: string;
+  /** ISO 8601: occurred_at <= this. */
+  occurredBefore?: string;
+  /** Search center latitude; send with nearLng and radiusMeters. */
+  nearLat?: number;
+  nearLng?: number;
+  /** Haversine radius in meters. */
+  radiusMeters?: number;
 };
 
 export type ListItemsResponse = {
@@ -68,6 +77,11 @@ export async function listItems(
       kind: params?.kind,
       limit: params?.limit,
       offset: params?.offset,
+      occurredAfter: params?.occurredAfter,
+      occurredBefore: params?.occurredBefore,
+      nearLat: params?.nearLat,
+      nearLng: params?.nearLng,
+      radiusMeters: params?.radiusMeters,
     },
   });
   return data;
@@ -101,6 +115,13 @@ export type SearchByTextParams = {
   hybrid?: boolean;
   /** Vector candidate count before fusion (50–200); server clamps to at least `limit`. */
   recallLimit?: number;
+  /** ISO 8601: occurred_at >= this. */
+  occurredAfter?: string;
+  /** ISO 8601: occurred_at <= this. */
+  occurredBefore?: string;
+  nearLat?: number;
+  nearLng?: number;
+  radiusMeters?: number;
 };
 
 export type SearchByTextResult = {
@@ -129,6 +150,21 @@ export async function searchByText(
   if (params.recallLimit !== undefined) {
     body.recallLimit = params.recallLimit;
   }
+  if (params.occurredAfter !== undefined) {
+    body.occurredAfter = params.occurredAfter;
+  }
+  if (params.occurredBefore !== undefined) {
+    body.occurredBefore = params.occurredBefore;
+  }
+  if (params.nearLat !== undefined) {
+    body.nearLat = params.nearLat;
+  }
+  if (params.nearLng !== undefined) {
+    body.nearLng = params.nearLng;
+  }
+  if (params.radiusMeters !== undefined) {
+    body.radiusMeters = params.radiusMeters;
+  }
   const { data } = await apiClient.post<SearchByTextResponse>(
     "/api/v1/items/search-by-text",
     body,
@@ -141,6 +177,11 @@ export type SearchByImageParams = {
   mime: string;
   kind?: ItemKind;
   limit?: number;
+  occurredAfter?: string;
+  occurredBefore?: string;
+  nearLat?: number;
+  nearLng?: number;
+  radiusMeters?: number;
 };
 
 export type SearchByImageResult = {
@@ -170,6 +211,21 @@ export async function searchByImage(
   }
   if (params.limit != null) {
     form.append("limit", String(params.limit));
+  }
+  if (params.occurredAfter != null) {
+    form.append("occurredAfter", params.occurredAfter);
+  }
+  if (params.occurredBefore != null) {
+    form.append("occurredBefore", params.occurredBefore);
+  }
+  if (params.nearLat != null) {
+    form.append("nearLat", String(params.nearLat));
+  }
+  if (params.nearLng != null) {
+    form.append("nearLng", String(params.nearLng));
+  }
+  if (params.radiusMeters != null) {
+    form.append("radiusMeters", String(params.radiusMeters));
   }
   const { data } = await apiClient.post<SearchByImageResponse>(
     "/api/v1/items/search-by-image",

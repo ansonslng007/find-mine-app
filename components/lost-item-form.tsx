@@ -6,7 +6,9 @@ import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";
 import type { ItemKind } from "@/lib/api/items";
 import { analyzeItemImage } from "@/lib/api/items";
+import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
 import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
+import { useI18n } from "@/providers/i18n-provider";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -25,7 +27,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useI18n } from "@/providers/i18n-provider";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
@@ -303,71 +304,15 @@ export function LostItemForm() {
   };
 
   const generateReadableAddressFromNominatim = (
-    address: any,
+    address: unknown,
     name: string,
     latitude: number,
     longitude: number,
-  ) => {
-    const { road, house_number, neighbourhood, suburb, city, county, country } =
-      address;
-
-    const locationParts: string[] = [];
-    const listSep = locale === "zh-Hant" ? "，" : ", ";
-
-    if (road && house_number) {
-      locationParts.push(
-        t("address.roadWithNumber", {
-          road: String(road),
-          house_number: String(house_number),
-        }),
-      );
-    } else if (road) {
-      locationParts.push(t("address.roadNearby", { road: String(road) }));
-    } else if (name) {
-      locationParts.push(name);
-    }
-
-    if (neighbourhood) {
-      locationParts.push(String(neighbourhood));
-    } else if (suburb) {
-      locationParts.push(String(suburb));
-    }
-
-    if (city) {
-      locationParts.push(String(city));
-    } else if (county) {
-      locationParts.push(String(county));
-    }
-
-    if (locationParts.length === 0) {
-      const latDesc =
-        latitude > 25.0
-          ? t("address.north")
-          : latitude > 23.5
-            ? t("address.centralLat")
-            : t("address.south");
-      const lonDesc =
-        longitude > 121.0
-          ? t("address.east")
-          : longitude > 120.5
-            ? t("address.west")
-            : t("address.centralLon");
-
-      if (country) {
-        return t("address.inCountry", {
-          country: String(country),
-          latDesc,
-          lonDesc,
-        });
-      }
-      return t("address.mystery", {
-        lat: latitude.toFixed(4),
-        lng: longitude.toFixed(4),
-      });
-    }
-
-    return locationParts.join(listSep);
-  };
+  ) =>
+    buildReadableAddressFromNominatim(address, name, latitude, longitude, {
+      locale,
+      translate: t,
+    });
 
   const analyzePhotoFromUri = async (uri: string, mime: string) => {
     setLoading(true);
@@ -441,7 +386,7 @@ export function LostItemForm() {
     await analyzePhotoFromUri(uri, asset.mimeType ?? "image/jpeg");
   };
 
-  /** Modal 關閉後立刻開相機，在實機上常被系統忽略；等互動／動畫結束並略延遲再開。 */
+  /** Opening the camera right after the modal closes is often ignored on device; wait for interaction/animation to finish, then delay slightly. */
   const closeUploadSheetThen = (run: () => void) => {
     setUploadSheetVisible(false);
     InteractionManager.runAfterInteractions(() => {

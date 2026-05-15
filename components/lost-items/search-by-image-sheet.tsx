@@ -75,9 +75,9 @@ type Props = Readonly<{
   isBusy: boolean;
   statusKind: SheetStatusKind;
   errorMessage: string | null;
-  /** 列表「以圖搜尋」用 `listSearch` 並傳 `scope`；FAB 用 `fabUpload`；刊登表單用 `itemPost`。 */
+  /** List image search uses `listSearch` with `scope`; FAB uses `fabUpload`; post form uses `itemPost`. */
   presentation?: "listSearch" | "fabUpload" | "itemPost";
-  /** `listSearch` 時必填，用於相機／相簿等共用文案。 */
+  /** Required for `listSearch`; shared copy for camera/album etc. */
   scope?: "lostHome" | "foundHome";
   fabFooter?: React.ReactNode;
 }>;
