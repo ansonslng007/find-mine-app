@@ -1,9 +1,11 @@
-import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import {
+  itemMatchesOccurredRange,
+  itemMatchesSearchGeo,
   passesCategoryChip,
   type TranslateFn,
 } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
+import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import {
   SearchByImageSheet,
   type SheetStatusKind,
@@ -12,14 +14,20 @@ import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/mock-lost-items";
+import {
+  DEFAULT_SEARCH_RADIUS_METERS,
+  type SearchRadiusMetersChoice,
+} from "@/constants/search-geo";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useItemsList, useSearchByImageMutation } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import type { Item, ItemKind } from "@/lib/api/items";
 import { searchByText } from "@/lib/api/items";
+import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useMemo, useState } from "react";
+import * as Location from "expo-location";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,6 +43,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 type HomeScope = "lostHome" | "foundHome";
+
+type ItemsSearchGeo = Readonly<{
+  lat: number;
+  lng: number;
+  label: string;
+  radiusMeters: SearchRadiusMetersChoice;
+}>;
 
 type ItemsHomeProps = Readonly<{
   kind: ItemKind;
@@ -216,19 +231,64 @@ function ImageSearchBanner({
 export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const insets = useSafeAreaInsets();
   const c = useAppColors();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const homeT = (key: string) => t(`${scope}.${key}`);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<LostItemCategoryId>("all");
-  const [isCategoryExpanded, setIsCategoryExpanded] = useState(false);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [busyKind, setBusyKind] = useState<"idle" | "search">("idle");
   const [imageSearchError, setImageSearchError] = useState<string | null>(null);
   const [textResults, setTextResults] = useState<Item[] | null>(null);
   const [textSearchLoading, setTextSearchLoading] = useState(false);
+  const [occurredFrom, setOccurredFrom] = useState<Date | null>(null);
+  const [occurredTo, setOccurredTo] = useState<Date | null>(null);
+  const [searchGeo, setSearchGeo] = useState<ItemsSearchGeo | null>(null);
+  const [mapSearchGeoVisible, setMapSearchGeoVisible] = useState(false);
+
+  const formatNominatimAddress = useCallback(
+    (address: unknown, name: string, lat: number, lng: number) =>
+      buildReadableAddressFromNominatim(address, name, lat, lng, {
+        locale,
+        translate: t,
+      }),
+    [locale, t],
+  );
+
+  const occurredAfterIso = useMemo(
+    () => (occurredFrom ? occurredFrom.toISOString() : undefined),
+    [occurredFrom],
+  );
+  const occurredBeforeIso = useMemo(
+    () => (occurredTo ? occurredTo.toISOString() : undefined),
+    [occurredTo],
+  );
+
+  const hasValidSearchGeoParams =
+    searchGeo != null &&
+    Number.isFinite(searchGeo.lat) &&
+    Number.isFinite(searchGeo.lng) &&
+    Number.isFinite(searchGeo.radiusMeters);
+
+  const searchNearLat = hasValidSearchGeoParams ? searchGeo.lat : undefined;
+  const searchNearLng = hasValidSearchGeoParams ? searchGeo.lng : undefined;
+  const searchRadiusMeters = hasValidSearchGeoParams
+    ? searchGeo.radiusMeters
+    : undefined;
 
   const { data, isPending, isError, error, refetch, isRefetching } =
-    useItemsList({ kind });
+    useItemsList({
+      kind,
+      occurredAfter: occurredAfterIso,
+      occurredBefore: occurredBeforeIso,
+      ...(hasValidSearchGeoParams
+        ? {
+            nearLat: searchNearLat,
+            nearLng: searchNearLng,
+            radiusMeters: searchRadiusMeters,
+          }
+        : {}),
+    });
 
   const searchByImageMutation = useSearchByImageMutation();
 
@@ -278,7 +338,20 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     setTextSearchLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await searchByText({ query: qTrim, kind, limit: 50 });
+        const res = await searchByText({
+          query: qTrim,
+          kind,
+          limit: 50,
+          occurredAfter: occurredAfterIso,
+          occurredBefore: occurredBeforeIso,
+          ...(hasValidSearchGeoParams
+            ? {
+                nearLat: searchNearLat,
+                nearLng: searchNearLng,
+                radiusMeters: searchRadiusMeters,
+              }
+            : {}),
+        });
         if (!cancelled) {
           setTextResults(res.results.map((r) => r.item));
         }
@@ -297,12 +370,35 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [qTrim, kind]);
+  }, [
+    qTrim,
+    kind,
+    occurredAfterIso,
+    occurredBeforeIso,
+    searchNearLat,
+    searchNearLng,
+    searchRadiusMeters,
+  ]);
 
   const normalFiltered = useMemo(() => {
     const items = data?.items ?? [];
-    return items.filter((item) => passesCategoryChip(item, category));
-  }, [data?.items, category]);
+    return items.filter(
+      (item) =>
+        passesCategoryChip(item, category) &&
+        itemMatchesSearchGeo(
+          item,
+          searchNearLat,
+          searchNearLng,
+          searchRadiusMeters,
+        ),
+    );
+  }, [
+    data?.items,
+    category,
+    searchNearLat,
+    searchNearLng,
+    searchRadiusMeters,
+  ]);
 
   const similarItems = useMemo(
     () =>
@@ -313,16 +409,61 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const hasImageSearch = searchByImageMutation.data != null;
 
   const imageItemsFiltered = useMemo(
-    () => similarItems.filter((item) => passesCategoryChip(item, category)),
-    [similarItems, category],
+    () =>
+      similarItems.filter(
+        (item) =>
+          passesCategoryChip(item, category) &&
+          itemMatchesOccurredRange(
+            item,
+            occurredAfterIso,
+            occurredBeforeIso,
+          ) &&
+          itemMatchesSearchGeo(
+            item,
+            searchNearLat,
+            searchNearLng,
+            searchRadiusMeters,
+          ),
+      ),
+    [
+      similarItems,
+      category,
+      occurredAfterIso,
+      occurredBeforeIso,
+      searchNearLat,
+      searchNearLng,
+      searchRadiusMeters,
+    ],
   );
 
   const textItemsFiltered = useMemo(() => {
     if (textResults === null) {
       return null;
     }
-    return textResults.filter((item) => passesCategoryChip(item, category));
-  }, [textResults, category]);
+    return textResults.filter(
+      (item) =>
+        passesCategoryChip(item, category) &&
+        itemMatchesOccurredRange(
+          item,
+          occurredAfterIso,
+          occurredBeforeIso,
+        ) &&
+        itemMatchesSearchGeo(
+          item,
+          searchNearLat,
+          searchNearLng,
+          searchRadiusMeters,
+        ),
+    );
+  }, [
+    textResults,
+    category,
+    occurredAfterIso,
+    occurredBeforeIso,
+    searchNearLat,
+    searchNearLng,
+    searchRadiusMeters,
+  ]);
 
   const hasTextSearch = qTrim.length > 0;
 
@@ -390,6 +531,15 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         mime,
         kind,
         limit: 50,
+        occurredAfter: occurredAfterIso,
+        occurredBefore: occurredBeforeIso,
+        ...(hasValidSearchGeoParams
+          ? {
+              nearLat: searchNearLat,
+              nearLng: searchNearLng,
+              radiusMeters: searchRadiusMeters,
+            }
+          : {}),
       });
       setIsSheetOpen(false);
     } catch (e) {
@@ -467,6 +617,43 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     setQuery(q);
   };
 
+  const handleSearchGeoGps = async () => {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
+      return;
+    }
+    try {
+      const pos = await Location.getCurrentPositionAsync({});
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
+        return;
+      }
+      setSearchGeo((prev) => ({
+        lat,
+        lng,
+        label: homeT("searchGeoGpsLabel"),
+        radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
+      }));
+    } catch {
+      Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
+    }
+  };
+
+  const handleChangeSearchRadiusMeters = (meters: number) => {
+    setSearchGeo((prev) => {
+      if (prev == null) {
+        return prev;
+      }
+      return {
+        ...prev,
+        radiusMeters: meters as SearchRadiusMetersChoice,
+      };
+    });
+  };
+
   const renderItem = ({ item }: { item: Item }) => <LostItemCard item={item} />;
 
   const listShowsTextSearch = hasTextSearch;
@@ -502,14 +689,54 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         query={query}
         onQueryChange={handleQueryChange}
         onPressSearchByImage={openSearchSheet}
-        isCategoryExpanded={isCategoryExpanded}
-        onToggleCategoryExpanded={() => setIsCategoryExpanded((prev) => !prev)}
+        isFilterExpanded={isFilterExpanded}
+        onToggleFilterExpanded={() => setIsFilterExpanded((prev) => !prev)}
         scope={scope}
+        occurredFrom={occurredFrom}
+        occurredTo={occurredTo}
+        onChangeOccurredFrom={setOccurredFrom}
+        onChangeOccurredTo={setOccurredTo}
+        onClearOccurredRange={() => {
+          setOccurredFrom(null);
+          setOccurredTo(null);
+        }}
+        searchGeo={searchGeo}
+        onPressPickSearchCenterMap={() => setMapSearchGeoVisible(true)}
+        onPressSearchCenterGps={handleSearchGeoGps}
+        onChangeSearchRadiusMeters={handleChangeSearchRadiusMeters}
+        onClearSearchGeo={() => setSearchGeo(null)}
+        category={category}
+        onCategoryChange={setCategory}
       />
-      {isCategoryExpanded ? (
-        <CategoryChipRow category={category} onCategoryChange={setCategory} />
-      ) : null}
-
+      <MapPickLocationModal
+        visible={mapSearchGeoVisible}
+        onClose={() => setMapSearchGeoVisible(false)}
+        onConfirm={(p) => {
+          setSearchGeo((prev) => ({
+            lat: p.lat,
+            lng: p.lng,
+            label: p.addressLabel,
+            radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
+          }));
+          setMapSearchGeoVisible(false);
+        }}
+        initialCenter={
+          searchGeo != null
+            ? { lat: searchGeo.lat, lng: searchGeo.lng }
+            : null
+        }
+        formatAddressFromNominatim={formatNominatimAddress}
+        title={t("form.mapPickTitle")}
+        confirmLabel={t("form.mapPickConfirm")}
+        addressLoadingLabel={t("form.mapPickAddressLoading")}
+        reverseFailLabel={t("form.mapPickReverseFail")}
+        dragHint={t("form.mapPickDragHint")}
+        pinHint={t("form.mapPickPinHint")}
+        permissionDeniedTitle={t("form.permLocationTitle")}
+        permissionDeniedBody={t("form.permLocationBody")}
+        locationFailedTitle={t("form.locationFailedTitle")}
+        locationFailedBody={t("form.locationFailedBody")}
+      />
       <SearchByImageSheet
         visible={isSheetOpen}
         onClose={closeSearchSheet}

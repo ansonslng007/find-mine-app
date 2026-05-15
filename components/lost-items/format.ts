@@ -103,3 +103,76 @@ export function passesCategoryChip(
   const id = inferItemCategoryId(item);
   return id === category;
 }
+
+/** When no ISO bounds, all items pass. If any bound is set, items without occurredAt are excluded. */
+export function itemMatchesOccurredRange(
+  item: Item,
+  occurredAfterIso: string | null | undefined,
+  occurredBeforeIso: string | null | undefined,
+): boolean {
+  const hasAfter = Boolean(occurredAfterIso);
+  const hasBefore = Boolean(occurredBeforeIso);
+  if (!hasAfter && !hasBefore) {
+    return true;
+  }
+  if (item.occurredAt == null || item.occurredAt === "") {
+    return false;
+  }
+  const t = new Date(item.occurredAt).getTime();
+  if (hasAfter && t < new Date(occurredAfterIso as string).getTime()) {
+    return false;
+  }
+  if (hasBefore && t > new Date(occurredBeforeIso as string).getTime()) {
+    return false;
+  }
+  return true;
+}
+
+const EARTH_RADIUS_M = 6371000;
+
+function haversineDistanceMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a1 = (lat1 * Math.PI) / 180;
+  const a2 = (lat2 * Math.PI) / 180;
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const h =
+    sinDLat * sinDLat + Math.cos(a1) * Math.cos(a2) * sinDLng * sinDLng;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Aligns with list/search API geo filter: pass when no center or radius; exclude items without coordinates. */
+export function itemMatchesSearchGeo(
+  item: Item,
+  centerLat: number | null | undefined,
+  centerLng: number | null | undefined,
+  radiusMeters: number | null | undefined,
+): boolean {
+  if (
+    centerLat == null ||
+    centerLng == null ||
+    radiusMeters == null ||
+    radiusMeters <= 0
+  ) {
+    return true;
+  }
+  if (
+    item.locationLatitude == null ||
+    item.locationLongitude == null
+  ) {
+    return false;
+  }
+  const d = haversineDistanceMeters(
+    centerLat,
+    centerLng,
+    item.locationLatitude,
+    item.locationLongitude,
+  );
+  return d <= radiusMeters;
+}

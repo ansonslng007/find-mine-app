@@ -34,7 +34,7 @@ const HK_REGION: Region = {
   longitudeDelta: 0.06,
 };
 
-/** 約略距離（公尺），足夠排除浮點與動畫誤差。 */
+/** Approximate distance in meters; enough to ignore float and animation drift. */
 const MOVE_UNLOCK_METERS = 28;
 
 function distanceMeters(
@@ -148,7 +148,7 @@ export function MapPickLocationModal({
   const [addressLabel, setAddressLabel] = useState("");
   const [reverseLoading, setReverseLoading] = useState(false);
   const [locatingMe, setLocatingMe] = useState(false);
-  /** 使用者已拖曳地圖（或按目前定位）：顯示地址與即時反查。 */
+  /** User dragged the map (or used current location): show address and live reverse geocoding. */
   const [showAddress, setShowAddress] = useState(false);
   const [mapMoving, setMapMoving] = useState(false);
 

@@ -21,10 +21,37 @@ export function useItemsList(params?: ListItemsParams) {
   const kind = params?.kind;
   const limit = params?.limit ?? 50;
   const offset = params?.offset ?? 0;
+  const occurredAfter = params?.occurredAfter;
+  const occurredBefore = params?.occurredBefore;
+  const nearLat = params?.nearLat;
+  const nearLng = params?.nearLng;
+  const radiusMeters = params?.radiusMeters;
 
   return useQuery({
-    queryKey: ["items", { kind, limit, offset }],
-    queryFn: () => listItems({ kind, limit, offset }),
+    queryKey: [
+      "items",
+      {
+        kind,
+        limit,
+        offset,
+        occurredAfter,
+        occurredBefore,
+        nearLat,
+        nearLng,
+        radiusMeters,
+      },
+    ],
+    queryFn: () =>
+      listItems({
+        kind,
+        limit,
+        offset,
+        occurredAfter,
+        occurredBefore,
+        nearLat,
+        nearLng,
+        radiusMeters,
+      }),
   });
 }
 
