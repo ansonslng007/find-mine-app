@@ -208,6 +208,9 @@ export const en = {
     confirmPasswordPlaceholder: "Confirm password",
     createAccount: "Create Account",
   },
+  platform: {
+    facebook: "Facebook",
+  },
   card: {
     badgeLost: "Lost",
     badgeFound: "Found",

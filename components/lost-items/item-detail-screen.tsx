@@ -9,7 +9,11 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { useItem } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import { createConversation } from "@/lib/api/chat";
-import { resolveFbSourcePostUrl } from "@/lib/fb-import-source";
+import {
+  formatItemPlatformTag,
+  isFacebookImport,
+  ITEM_PLATFORM_TAG_BG,
+} from "@/lib/item-platform";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
@@ -52,11 +56,14 @@ export function ItemDetailScreen() {
           backgroundColor: c.cardBackground,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: c.borderSubtle,
+          gap: 8,
         },
         closeRow: {
           flexDirection: "row",
           alignItems: "center",
           gap: 6,
+          flexShrink: 1,
+          minWidth: 0,
         },
         closeLabel: {
           fontSize: 17,
@@ -78,7 +85,6 @@ export function ItemDetailScreen() {
           fontSize: 24,
           fontWeight: "700",
           lineHeight: 32,
-          marginBottom: 16,
         },
         metaRow: {
           flexDirection: "row",
@@ -182,6 +188,24 @@ export function ItemDetailScreen() {
           fontSize: 13,
           fontWeight: "700",
         },
+        titleRow: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12,
+        },
+        badgePlatform: {
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 999,
+          backgroundColor: ITEM_PLATFORM_TAG_BG,
+        },
+        badgePlatformText: {
+          color: "#FFFFFF",
+          fontSize: 13,
+          fontWeight: "600",
+        },
       }),
     [c],
   );
@@ -244,8 +268,9 @@ export function ItemDetailScreen() {
   const poster = item.postedBy ?? null;
   const isOwnPoster =
     poster != null && authUser != null && poster.id === authUser.id;
-  const sourcePostUrl = resolveFbSourcePostUrl(item);
-  const isFbGroupImport = sourcePostUrl != null;
+  const sourcePostUrl = item.sourcePostUrl?.trim() || null;
+  const platformTag = formatItemPlatformTag(item, t);
+  const isFbGroupImport = isFacebookImport(item);
   const canMessagePoster =
     !isFbGroupImport && poster != null && !isOwnPoster;
 
@@ -328,9 +353,19 @@ export function ItemDetailScreen() {
           transition={200}
         />
         <View style={styles.body}>
-          <ThemedText type="screenTitle" style={styles.title}>
-            {item.title}
-          </ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText
+              type="screenTitle"
+              style={[styles.title, { flex: 1, minWidth: 0 }]}
+            >
+              {item.title}
+            </ThemedText>
+            {platformTag ? (
+              <View style={styles.badgePlatform}>
+                <Text style={styles.badgePlatformText}>{platformTag}</Text>
+              </View>
+            ) : null}
+          </View>
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
