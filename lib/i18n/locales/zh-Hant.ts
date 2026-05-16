@@ -343,6 +343,9 @@ export const zhHant = {
     description: "描述",
     locationSection: "地點",
     contactPoster: "聯絡發佈者",
+    openSourcePost: "查看社團貼文",
+    openSourcePostFailedTitle: "無法開啟連結",
+    openSourcePostFailedBody: "請確認已安裝瀏覽器或 Facebook App。",
     youArePoster: "這是你發布的項目。",
     contactUnavailableLegacy:
       "此筆資料較早建立，未綁定發佈者帳戶；登入後新發布的項目才可私訊聯絡。",
