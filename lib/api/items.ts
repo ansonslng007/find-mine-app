@@ -27,6 +27,8 @@ export type Item = {
   postedBy: ItemPostedBy | null;
   /** Facebook group post URL when imported from external feed. */
   sourcePostUrl: string | null;
+  /** External source, e.g. `facebook`; null when posted via the app. */
+  platform: string | null;
 };
 
 export type CreateItemResponse = {

@@ -9,6 +9,10 @@ import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useI18n } from "@/providers/i18n-provider";
 import type { Item } from "@/lib/api/items";
+import {
+  formatItemPlatformTag,
+  ITEM_PLATFORM_TAG_BG,
+} from "@/lib/item-platform";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
@@ -69,6 +73,14 @@ export function LostItemCard({ item }: Props) {
           fontSize: 11,
           fontWeight: "700",
         },
+        badgePlatform: {
+          backgroundColor: ITEM_PLATFORM_TAG_BG,
+        },
+        badgePlatformText: {
+          color: "#FFFFFF",
+          fontSize: 11,
+          fontWeight: "600",
+        },
         metaRow: {
           flexDirection: "row",
           alignItems: "center",
@@ -100,6 +112,7 @@ export function LostItemCard({ item }: Props) {
   const desc = item.description ?? "";
   const loc = item.locationText ?? t("common.unknownLocation");
   const isLost = item.kind === "lost";
+  const platformTag = formatItemPlatformTag(item, t);
   const showTime =
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
 
@@ -121,15 +134,22 @@ export function LostItemCard({ item }: Props) {
             <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
               {item.title}
             </ThemedText>
-            <View
-              style={[
-                styles.badge,
-                isLost ? styles.badgeLost : styles.badgeFound,
-              ]}
-            >
-              <Text style={styles.badgeText}>
-                {isLost ? t("card.badgeLost") : t("card.badgeFound")}
-              </Text>
+            <View style={{ flexDirection: "row", gap: 6, flexShrink: 0 }}>
+              {platformTag ? (
+                <View style={[styles.badge, styles.badgePlatform]}>
+                  <Text style={styles.badgePlatformText}>{platformTag}</Text>
+                </View>
+              ) : null}
+              <View
+                style={[
+                  styles.badge,
+                  isLost ? styles.badgeLost : styles.badgeFound,
+                ]}
+              >
+                <Text style={styles.badgeText}>
+                  {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+                </Text>
+              </View>
             </View>
           </View>
           <ThemedText

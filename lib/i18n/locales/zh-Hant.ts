@@ -198,6 +198,9 @@ export const zhHant = {
     confirmPasswordPlaceholder: "確認密碼",
     createAccount: "建立帳戶",
   },
+  platform: {
+    facebook: "Facebook",
+  },
   card: {
     badgeLost: "遺失",
     badgeFound: "尋獲",
