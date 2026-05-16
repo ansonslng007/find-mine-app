@@ -25,6 +25,8 @@ export type Item = {
   createdAt: string;
   updatedAt: string;
   postedBy: ItemPostedBy | null;
+  /** Facebook group post URL when imported from external feed. */
+  sourcePostUrl: string | null;
 };
 
 export type CreateItemResponse = {

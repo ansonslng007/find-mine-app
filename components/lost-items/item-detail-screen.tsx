@@ -9,6 +9,7 @@ import { useAuthUser } from "@/hooks/use-auth-user";
 import { useItem } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import { createConversation } from "@/lib/api/chat";
+import { resolveFbSourcePostUrl } from "@/lib/fb-import-source";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
@@ -16,6 +17,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -242,8 +244,33 @@ export function ItemDetailScreen() {
   const poster = item.postedBy ?? null;
   const isOwnPoster =
     poster != null && authUser != null && poster.id === authUser.id;
+  const sourcePostUrl = resolveFbSourcePostUrl(item);
+  const isFbGroupImport = sourcePostUrl != null;
   const canMessagePoster =
-    poster != null && !isOwnPoster;
+    !isFbGroupImport && poster != null && !isOwnPoster;
+
+  const handleOpenSourcePost = async () => {
+    if (!sourcePostUrl) return;
+    setContactBusy(true);
+    try {
+      const canOpen = await Linking.canOpenURL(sourcePostUrl);
+      if (!canOpen) {
+        Alert.alert(
+          t("detail.openSourcePostFailedTitle"),
+          t("detail.openSourcePostFailedBody"),
+        );
+        return;
+      }
+      await Linking.openURL(sourcePostUrl);
+    } catch {
+      Alert.alert(
+        t("detail.openSourcePostFailedTitle"),
+        t("detail.openSourcePostFailedBody"),
+      );
+    } finally {
+      setContactBusy(false);
+    }
+  };
 
   const handleContactPoster = async () => {
     if (!poster) {
@@ -345,6 +372,21 @@ export function ItemDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 14) },
         ]}
       >
+        {isFbGroupImport && !isOwnPoster ? (
+          <Pressable
+            style={styles.contactBtn}
+            onPress={handleOpenSourcePost}
+            disabled={contactBusy}
+          >
+            {contactBusy ? (
+              <ActivityIndicator color={c.onBrand} />
+            ) : (
+              <Text style={styles.contactBtnLabel}>
+                {t("detail.openSourcePost")}
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
         {canMessagePoster ? (
           <Pressable
             style={styles.contactBtn}
@@ -365,7 +407,10 @@ export function ItemDetailScreen() {
             {t("detail.youArePoster")}
           </ThemedText>
         ) : null}
-        {!canMessagePoster && !isOwnPoster && poster == null ? (
+        {!canMessagePoster &&
+        !isOwnPoster &&
+        !isFbGroupImport &&
+        poster == null ? (
           <ThemedText type="bodyMuted" style={styles.contactFooterHint}>
             {t("detail.contactUnavailableLegacy")}
           </ThemedText>

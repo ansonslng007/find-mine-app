@@ -357,6 +357,10 @@ export const en = {
     description: "Description",
     locationSection: "Location",
     contactPoster: "Message poster",
+    openSourcePost: "View group post",
+    openSourcePostFailedTitle: "Could not open link",
+    openSourcePostFailedBody:
+      "Check that a browser or the Facebook app is available.",
     youArePoster: "You posted this item.",
     contactUnavailableLegacy:
       "This listing has no linked poster account (older data). Messaging is only available for items published while signed in.",
