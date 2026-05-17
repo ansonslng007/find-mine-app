@@ -362,11 +362,8 @@ export function SearchFilterRow({
           alignItems: "center",
           gap: 10,
         },
-        dateRow: {
-          flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 8,
+        dateBlock: {
+          gap: 4,
         },
         rangeChip: {
           flexDirection: "row",
@@ -378,8 +375,7 @@ export function SearchFilterRow({
           backgroundColor: c.chipBackground,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: c.borderSubtle,
-          flex: 1,
-          minWidth: 0,
+          alignSelf: "stretch",
         },
         rangeChipActive: {
           borderColor: c.brand,
@@ -415,7 +411,8 @@ export function SearchFilterRow({
           borderColor: c.brand,
         },
         clearLink: {
-          paddingVertical: 6,
+          alignSelf: "flex-start",
+          paddingVertical: 4,
           paddingHorizontal: 4,
         },
         modalBackdrop: {
@@ -637,7 +634,7 @@ export function SearchFilterRow({
             category={category}
             onCategoryChange={onCategoryChange}
           />
-          <View style={styles.dateRow}>
+          <View style={styles.dateBlock}>
             <Pressable
               style={[
                 styles.rangeChip,
@@ -656,7 +653,6 @@ export function SearchFilterRow({
                 </ThemedText>
               </View>
             </Pressable>
-
             {hasAnyDate ? (
               <Pressable
                 style={styles.clearLink}
