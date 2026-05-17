@@ -1,4 +1,5 @@
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
+import { DateRangePickerModal } from "@/components/modal/date-range-picker-modal";
 import { ThemedText } from "@/components/themed-text";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -15,13 +16,11 @@ import Slider from "@react-native-community/slider";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
-import { Calendar, type DateData } from "react-native-calendars";
 
 /** Track horizontal inset (logical px) so labels align roughly with the @react-native-community/slider thumb center. */
 const SLIDER_THUMB_TRACK_INSET = 14;
@@ -33,10 +32,6 @@ const RADIUS_LABEL_I18N_KEYS = [
   "searchGeoRadius10km",
 ] as const;
 
-type PeriodMarkedDates = Record<
-  string,
-  { color: string; startingDay?: boolean; endingDay?: boolean }
->;
 
 type SearchGeoState = {
   lat: number;
@@ -67,38 +62,6 @@ type Props = Readonly<{
   onCategoryChange: (id: LostItemCategoryId) => void;
 }>;
 
-function startOfLocalDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function endOfLocalDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-
-function toLocalYmd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/** YYYY-MM-DD strings compare lexicographically. Clamp ymd to at most maxYmd (inclusive). */
-function clampYmd(ymd: string, maxYmd: string): string {
-  if (ymd > maxYmd) {
-    return maxYmd;
-  }
-  return ymd;
-}
-
-function parseLocalYmd(ymd: string): Date {
-  const [y, m, d] = ymd.split("-").map((x) => Number(x));
-  return new Date(y, m - 1, d);
-}
-
 function formatShortDate(d: Date, locale: AppLocale): string {
   return d.toLocaleDateString(locale === "zh-Hant" ? "zh-TW" : "en-US", {
     year: "numeric",
@@ -119,35 +82,6 @@ function formatRangeSummary(
     return formatShortDate(from, locale);
   }
   return "";
-}
-
-function buildPeriodMarkedDates(
-  startYmd: string | null,
-  endYmd: string | null,
-  color: string,
-): PeriodMarkedDates {
-  const out: PeriodMarkedDates = {};
-  if (startYmd == null) {
-    return out;
-  }
-  if (endYmd == null || startYmd === endYmd) {
-    out[startYmd] = { startingDay: true, endingDay: true, color };
-    return out;
-  }
-  const lo = startYmd < endYmd ? startYmd : endYmd;
-  const hi = startYmd < endYmd ? endYmd : startYmd;
-  const cur = parseLocalYmd(lo);
-  const endD = parseLocalYmd(hi);
-  while (cur.getTime() <= endD.getTime()) {
-    const ds = toLocalYmd(cur);
-    out[ds] = {
-      color,
-      startingDay: ds === lo,
-      endingDay: ds === hi,
-    };
-    cur.setDate(cur.getDate() + 1);
-  }
-  return out;
 }
 
 type SearchGeoSectionProps = Readonly<{
@@ -343,10 +277,6 @@ function SearchGeoSection({
   );
 }
 
-type DraftRange = Readonly<{
-  start: string | null;
-  end: string | null;
-}>;
 
 export function SearchFilterRow({
   query,
@@ -372,7 +302,6 @@ export function SearchFilterRow({
   const { t, locale } = useI18n();
   const screenT = (key: string) => t(`${scope}.${key}`);
   const [rangeVisible, setRangeVisible] = useState(false);
-  const [draft, setDraft] = useState<DraftRange>({ start: null, end: null });
 
   const styles = useMemo(
     () =>
@@ -521,91 +450,11 @@ export function SearchFilterRow({
   const hasActiveFilter = category !== "all" || hasAnyDate || searchGeo != null;
   const rangeSummary = formatRangeSummary(locale, occurredFrom, occurredTo);
 
-  const todayYmd = toLocalYmd(new Date());
-
-  const markedDates = useMemo(
-    () => buildPeriodMarkedDates(draft.start, draft.end, c.brand),
-    [draft.start, draft.end, c.brand],
-  );
-
-  const calendarTheme = useMemo(
-    () => ({
-      calendarBackground: c.cardBackground,
-      textSectionTitleColor: c.textMuted,
-      selectedDayBackgroundColor: c.brand,
-      selectedDayTextColor: c.onBrand,
-      todayTextColor: c.brand,
-      dayTextColor: c.textPrimary,
-      textDisabledColor: c.textMuted,
-      monthTextColor: c.textPrimary,
-      arrowColor: c.brand,
-      textDayFontSize: 15,
-      textMonthFontSize: 16,
-      textDayHeaderFontSize: 12,
-    }),
-    [c],
-  );
-
-  const calendarCurrent = draft.end ?? draft.start ?? todayYmd;
-
   const openRangeModal = () => {
-    const max = todayYmd;
-    const startRaw = occurredFrom != null ? toLocalYmd(occurredFrom) : null;
-    const endRaw = occurredTo != null ? toLocalYmd(occurredTo) : null;
-    const start = startRaw != null ? clampYmd(startRaw, max) : null;
-    const end = endRaw != null ? clampYmd(endRaw, max) : null;
-    if (start != null && end != null && start > end) {
-      setDraft({ start: end, end: start });
-    } else {
-      setDraft({ start, end });
-    }
     setRangeVisible(true);
   };
 
-  const onDayPress = (day: DateData) => {
-    const s = day.dateString;
-    if (s > todayYmd) {
-      return;
-    }
-    setDraft((prev) => {
-      if (prev.start == null || (prev.start != null && prev.end != null)) {
-        return { start: s, end: null };
-      }
-      if (s < prev.start) {
-        return { start: s, end: prev.start };
-      }
-      return { start: prev.start, end: s };
-    });
-  };
-
-  const applyDraftAndClose = () => {
-    const max = todayYmd;
-    if (draft.start != null && draft.end != null) {
-      let lo = draft.start < draft.end ? draft.start : draft.end;
-      let hi = draft.start < draft.end ? draft.end : draft.start;
-      lo = clampYmd(lo, max);
-      hi = clampYmd(hi, max);
-      if (lo > hi) {
-        hi = lo;
-      }
-      onChangeOccurredFrom(startOfLocalDay(parseLocalYmd(lo)));
-      onChangeOccurredTo(endOfLocalDay(parseLocalYmd(hi)));
-    } else if (draft.start != null && draft.end == null) {
-      const ymd = clampYmd(draft.start, max);
-      const d = parseLocalYmd(ymd);
-      onChangeOccurredFrom(startOfLocalDay(d));
-      onChangeOccurredTo(endOfLocalDay(d));
-    }
-    setRangeVisible(false);
-  };
-
   const closeModal = () => {
-    setRangeVisible(false);
-  };
-
-  const clearInModal = () => {
-    onClearOccurredRange();
-    setDraft({ start: null, end: null });
     setRangeVisible(false);
   };
 
@@ -717,57 +566,19 @@ export function SearchFilterRow({
         </>
       ) : null}
 
-      <Modal
+      <DateRangePickerModal
         visible={rangeVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={closeModal}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={closeModal}>
-          <Pressable
-            style={styles.modalCard}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <ThemedText type="subtitle" style={styles.modalTitle}>
-              {screenT("occurredRangeTitle")}
-            </ThemedText>
-            <ThemedText type="bodyMuted" style={styles.modalHint}>
-              {screenT("occurredRangeHint")}
-            </ThemedText>
-            <Calendar
-              markingType="period"
-              markedDates={markedDates}
-              onDayPress={onDayPress}
-              theme={calendarTheme}
-              enableSwipeMonths
-              current={calendarCurrent}
-              maxDate={todayYmd}
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnGhost]}
-                onPress={clearInModal}
-              >
-                <ThemedText type="link">{screenT("occurredClear")}</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnGhost]}
-                onPress={closeModal}
-              >
-                <ThemedText type="body">{t("common.cancel")}</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnPrimary]}
-                onPress={applyDraftAndClose}
-              >
-                <ThemedText type="defaultSemiBold" style={{ color: c.onBrand }}>
-                  {screenT("occurredRangeDone")}
-                </ThemedText>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={closeModal}
+        title={screenT("occurredRangeTitle")}
+        hint={screenT("occurredRangeHint")}
+        clearLabel={screenT("occurredClear")}
+        doneLabel={screenT("occurredRangeDone")}
+        occurredFrom={occurredFrom}
+        occurredTo={occurredTo}
+        onChangeOccurredFrom={onChangeOccurredFrom}
+        onChangeOccurredTo={onChangeOccurredTo}
+        onClearOccurredRange={onClearOccurredRange}
+      />
     </View>
   );
 }

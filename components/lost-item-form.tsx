@@ -1,6 +1,7 @@
-import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
-import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
+import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
+import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
 import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
+import { DatePickerModal } from "@/components/modal/date-picker-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -21,7 +22,6 @@ import {
   ActivityIndicator,
   Alert,
   InteractionManager,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -29,7 +29,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Calendar } from "react-native-calendars";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
 
@@ -688,54 +687,14 @@ export function LostItemForm() {
             {timeInputError}
           </ThemedText>
         ) : null}
-        <Modal
+        <DatePickerModal
           visible={showDatePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <Pressable
-            style={styles.calendarModalOverlay}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <Pressable
-              style={[
-                styles.calendarModalCard,
-                {
-                  backgroundColor: c.cardBackground,
-                  borderColor: c.borderSubtle,
-                },
-              ]}
-              onPress={() => {}}
-            >
-              <Calendar
-                current={formatDateInputValue(pickedOccurredAt ?? new Date())}
-                maxDate={formatDateInputValue(new Date())}
-                onDayPress={handleCalendarDayPress}
-                markedDates={
-                  time && !timeInputError
-                    ? {
-                        [time]: {
-                          selected: true,
-                          selectedColor: c.brand,
-                        },
-                      }
-                    : undefined
-                }
-                theme={{
-                  calendarBackground: c.cardBackground,
-                  textSectionTitleColor: c.textMuted,
-                  dayTextColor: c.textPrimary,
-                  monthTextColor: c.textPrimary,
-                  arrowColor: c.brand,
-                  selectedDayBackgroundColor: c.brand,
-                  selectedDayTextColor: c.onBrand,
-                  todayTextColor: c.brand,
-                }}
-              />
-            </Pressable>
-          </Pressable>
-        </Modal>
+          onClose={() => setShowDatePicker(false)}
+          currentDate={formatDateInputValue(pickedOccurredAt ?? new Date())}
+          maxDate={formatDateInputValue(new Date())}
+          selectedDateString={time && !timeInputError ? time : undefined}
+          onDayPress={handleCalendarDayPress}
+        />
       </View>
 
       <View style={styles.formGroup}>
