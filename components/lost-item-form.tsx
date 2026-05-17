@@ -17,7 +17,7 @@ import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -146,9 +146,15 @@ export function LostItemForm() {
     null,
   );
   const [mapPickVisible, setMapPickVisible] = useState(false);
+  const placesRef = useRef<any>(null);
   const c = useAppColors();
   const { t, locale } = useI18n();
   const styles = useMemo(() => createLostItemFormStyles(), []);
+
+  const setLocationWithAutocomplete = (address: string) => {
+    setLocation(address);
+    placesRef.current?.setAddressText(address);
+  };
 
   const [objectHint, setObjectHint] = useState("");
   const [uploadSheetVisible, setUploadSheetVisible] = useState(false);
@@ -214,6 +220,7 @@ export function LostItemForm() {
     setShowDatePicker(false);
     setTimeInputError("");
     setLocation("");
+    placesRef.current?.setAddressText("");
     setCategory("");
     setKind("lost");
     setDescription("");
@@ -486,9 +493,9 @@ export function LostItemForm() {
             latitude,
             longitude,
           );
-          setLocation(readableAddress);
+          setLocationWithAutocomplete(readableAddress);
         } else {
-          setLocation(
+          setLocationWithAutocomplete(
             t("address.unknownPin", {
               lat: latitude.toFixed(4),
               lng: longitude.toFixed(4),
@@ -500,7 +507,7 @@ export function LostItemForm() {
         });
       } catch (error) {
         console.error("Reverse geocoding error:", error);
-        setLocation(
+        setLocationWithAutocomplete(
           t("address.coordsPin", {
             lat: latitude.toFixed(4),
             lng: longitude.toFixed(4),
@@ -723,6 +730,7 @@ export function LostItemForm() {
 
         <View style={styles.autocompleteContainer}>
           <GooglePlacesAutocomplete
+            ref={placesRef}
             placeholder={t("form.placesPlaceholder")}
             onPress={handlePlacesSelect}
             fetchDetails
@@ -971,7 +979,7 @@ export function LostItemForm() {
         visible={mapPickVisible}
         onClose={() => setMapPickVisible(false)}
         onConfirm={(p) => {
-          setLocation(p.addressLabel);
+          setLocationWithAutocomplete(p.addressLabel);
           setPlaceGeometry({ location: { lat: p.lat, lng: p.lng } });
           setMapPickVisible(false);
         }}
