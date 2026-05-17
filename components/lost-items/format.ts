@@ -1,4 +1,4 @@
-import type { LostItemCategoryId } from "@/constants/mock-lost-items";
+import type { LostItemCategoryId } from "@/constants/items";
 import type { Item } from "@/lib/api/items";
 import type { AppLocale } from "@/lib/i18n/types";
 
@@ -142,8 +142,7 @@ function haversineDistanceMeters(
   const a2 = (lat2 * Math.PI) / 180;
   const sinDLat = Math.sin(dLat / 2);
   const sinDLng = Math.sin(dLng / 2);
-  const h =
-    sinDLat * sinDLat + Math.cos(a1) * Math.cos(a2) * sinDLng * sinDLng;
+  const h = sinDLat * sinDLat + Math.cos(a1) * Math.cos(a2) * sinDLng * sinDLng;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -162,10 +161,7 @@ export function itemMatchesSearchGeo(
   ) {
     return true;
   }
-  if (
-    item.locationLatitude == null ||
-    item.locationLongitude == null
-  ) {
+  if (item.locationLatitude == null || item.locationLongitude == null) {
     return false;
   }
   const d = haversineDistanceMeters(

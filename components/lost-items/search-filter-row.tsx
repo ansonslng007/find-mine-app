@@ -2,7 +2,7 @@ import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import { ThemedText } from "@/components/themed-text";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import type { LostItemCategoryId } from "@/constants/mock-lost-items";
+import type { LostItemCategoryId } from "@/constants/items";
 import {
   clampRadiusChoiceIndex,
   radiusMetersToChoiceIndex,
@@ -13,7 +13,14 @@ import type { AppLocale } from "@/lib/i18n/types";
 import { useI18n } from "@/providers/i18n-provider";
 import Slider from "@react-native-community/slider";
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { Calendar, type DateData } from "react-native-calendars";
 
 /** Track horizontal inset (logical px) so labels align roughly with the @react-native-community/slider thumb center. */
