@@ -1,4 +1,6 @@
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
+import type { LocationPickChange } from "@/components/location/location-pick-field";
+import { LocationPickField } from "@/components/location/location-pick-field";
 import { DateRangePickerModal } from "@/components/modal/date-range-picker-modal";
 import { ThemedText } from "@/components/themed-text";
 import { IconButton } from "@/components/ui/icon-button";
@@ -15,7 +17,6 @@ import { useI18n } from "@/providers/i18n-provider";
 import Slider from "@react-native-community/slider";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   TextInput,
@@ -54,8 +55,7 @@ type Props = Readonly<{
   onClearOccurredRange: () => void;
   searchGeo: SearchGeoState;
   onPressPickSearchCenterMap: () => void;
-  onPressSearchCenterGps: () => void;
-  isLocatingGps?: boolean;
+  onSearchLocationChange: (value: LocationPickChange) => void;
   onChangeSearchRadiusMeters: (meters: number) => void;
   onClearSearchGeo: () => void;
   category: LostItemCategoryId;
@@ -92,14 +92,11 @@ type SearchGeoSectionProps = Readonly<{
   chipBackground: string;
   searchGeo: SearchGeoState;
   onPressPickSearchCenterMap: () => void;
-  onPressSearchCenterGps: () => void;
-  isLocatingGps?: boolean;
+  onSearchLocationChange: (value: LocationPickChange) => void;
   onChangeSearchRadiusMeters: (meters: number) => void;
   onClearSearchGeo: () => void;
   styles: {
     geoBlock: object;
-    geoRow: object;
-    geoBtn: object;
     sliderWithLabels: object;
     sliderLabelsRow: object;
     sliderLabel: object;
@@ -114,8 +111,7 @@ function SearchGeoSection({
   chipBackground,
   searchGeo,
   onPressPickSearchCenterMap,
-  onPressSearchCenterGps,
-  isLocatingGps,
+  onSearchLocationChange,
   onChangeSearchRadiusMeters,
   onClearSearchGeo,
   styles,
@@ -143,39 +139,11 @@ function SearchGeoSection({
         <ThemedText type="defaultSemiBold" style={{ color: textPrimary }}>
           {screenT("searchGeoTitle")}
         </ThemedText>
-        <View style={styles.geoRow}>
-          <Pressable style={styles.geoBtn} onPress={onPressPickSearchCenterMap}>
-            <IconSymbol name="map" size={20} color={textMuted} />
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ color: textPrimary, fontSize: 14 }}
-              numberOfLines={1}
-            >
-              {screenT("searchGeoPickMap")}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={styles.geoBtn}
-            onPress={onPressSearchCenterGps}
-            disabled={isLocatingGps}
-          >
-            {isLocatingGps ? (
-              <ActivityIndicator size="small" color={textMuted} />
-            ) : (
-              <IconSymbol name="location.fill" size={20} color={textMuted} />
-            )}
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ color: textPrimary, fontSize: 14 }}
-              numberOfLines={1}
-            >
-              {screenT("searchGeoUseGps")}
-            </ThemedText>
-          </Pressable>
-        </View>
-        <ThemedText type="bodyMuted">
-          {screenT("searchGeoHintNoCenter")}
-        </ThemedText>
+        <LocationPickField
+          addressLabel=""
+          onLocationChange={onSearchLocationChange}
+          onPressPickOnMap={onPressPickSearchCenterMap}
+        />
       </View>
     );
   }
@@ -187,39 +155,13 @@ function SearchGeoSection({
       <ThemedText type="defaultSemiBold" style={{ color: textPrimary }}>
         {screenT("searchGeoTitle")}
       </ThemedText>
-      <View style={styles.geoRow}>
-        <Pressable style={styles.geoBtn} onPress={onPressPickSearchCenterMap}>
-          <IconSymbol name="map" size={20} color={textMuted} />
-          <ThemedText
-            type="defaultSemiBold"
-            style={{ color: textPrimary, fontSize: 14 }}
-            numberOfLines={1}
-          >
-            {screenT("searchGeoPickMap")}
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          style={styles.geoBtn}
-          onPress={onPressSearchCenterGps}
-          disabled={isLocatingGps}
-        >
-          {isLocatingGps ? (
-            <ActivityIndicator size="small" color={textMuted} />
-          ) : (
-            <IconSymbol name="location.fill" size={20} color={textMuted} />
-          )}
-          <ThemedText
-            type="defaultSemiBold"
-            style={{ color: textPrimary, fontSize: 14 }}
-            numberOfLines={1}
-          >
-            {screenT("searchGeoUseGps")}
-          </ThemedText>
-        </Pressable>
-      </View>
-      <ThemedText type="body" numberOfLines={2} style={{ color: textPrimary }}>
-        {searchGeo.label}
-      </ThemedText>
+      <LocationPickField
+        addressLabel={searchGeo.label}
+        onLocationChange={onSearchLocationChange}
+        onPressPickOnMap={onPressPickSearchCenterMap}
+        lat={searchGeo.lat}
+        lng={searchGeo.lng}
+      />
       <ThemedText type="defaultSemiBold" style={{ color: textPrimary }}>
         {screenT("searchGeoRadius")}
       </ThemedText>
@@ -292,7 +234,7 @@ export function SearchFilterRow({
   onClearOccurredRange,
   searchGeo,
   onPressPickSearchCenterMap,
-  onPressSearchCenterGps,
+  onSearchLocationChange,
   onChangeSearchRadiusMeters,
   onClearSearchGeo,
   category,
@@ -408,23 +350,6 @@ export function SearchFilterRow({
         geoBlock: {
           marginTop: 12,
           gap: 10,
-        },
-        geoRow: {
-          flexDirection: "row",
-          gap: 8,
-        },
-        geoBtn: {
-          flex: 1,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          paddingVertical: 10,
-          paddingHorizontal: 6,
-          borderRadius: 12,
-          backgroundColor: c.chipBackground,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.borderSubtle,
         },
         sliderWithLabels: {
           width: "100%",
@@ -551,13 +476,11 @@ export function SearchFilterRow({
             chipBackground={c.chipBackground}
             searchGeo={searchGeo}
             onPressPickSearchCenterMap={onPressPickSearchCenterMap}
-            onPressSearchCenterGps={onPressSearchCenterGps}
+            onSearchLocationChange={onSearchLocationChange}
             onChangeSearchRadiusMeters={onChangeSearchRadiusMeters}
             onClearSearchGeo={onClearSearchGeo}
             styles={{
               geoBlock: styles.geoBlock,
-              geoRow: styles.geoRow,
-              geoBtn: styles.geoBtn,
               sliderWithLabels: styles.sliderWithLabels,
               sliderLabelsRow: styles.sliderLabelsRow,
               sliderLabel: styles.sliderLabel,
