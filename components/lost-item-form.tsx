@@ -1,6 +1,6 @@
-import { CategoryPickerModal } from "@/components/lost-items/category-picker-modal";
 import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
+import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -908,8 +908,15 @@ export function LostItemForm() {
           onPress={() => setCategoryModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Text style={[styles.inputBare, { color: category ? c.textPrimary : c.placeholder }]}>
-            {category ? t(`categories.${category}`) : t("form.categoryPlaceholder")}
+          <Text
+            style={[
+              styles.inputBare,
+              { color: category ? c.textPrimary : c.placeholder },
+            ]}
+          >
+            {category
+              ? t(`categories.${category}`)
+              : t("form.categoryPlaceholder")}
           </Text>
           <IconSymbol name="chevron.down" size={22} color={c.textMuted} />
         </TouchableOpacity>
