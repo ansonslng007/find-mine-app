@@ -5,11 +5,11 @@ import {
   type TranslateFn,
 } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
-import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
+import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
 import {
   SearchByImageSheet,
   type SheetStatusKind,
-} from "@/components/lost-items/search-by-image-sheet";
+} from "@/components/modal/search-by-image-sheet";
 import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
