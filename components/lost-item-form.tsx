@@ -1,7 +1,7 @@
 import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
+import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";

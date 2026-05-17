@@ -13,8 +13,7 @@ import {
 import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
-import { type LostItemCategoryId } from "@/constants/mock-lost-items";
-import { nominatimReverse } from "@/lib/nominatim";
+import { type LostItemCategoryId } from "@/constants/items";
 import {
   DEFAULT_SEARCH_RADIUS_METERS,
   type SearchRadiusMetersChoice,
@@ -24,6 +23,7 @@ import { useItemsList, useSearchByImageMutation } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import type { Item, ItemKind } from "@/lib/api/items";
 import { searchByText } from "@/lib/api/items";
+import { nominatimReverse } from "@/lib/nominatim";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
