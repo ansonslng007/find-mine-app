@@ -1,25 +1,19 @@
+import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
+import { ThemedText } from "@/components/themed-text";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ThemedText } from "@/components/themed-text";
-import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
+import type { LostItemCategoryId } from "@/constants/mock-lost-items";
 import {
   clampRadiusChoiceIndex,
-  SEARCH_RADIUS_METERS_CHOICES,
   radiusMetersToChoiceIndex,
+  SEARCH_RADIUS_METERS_CHOICES,
 } from "@/constants/search-geo";
-import type { LostItemCategoryId } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import type { AppLocale } from "@/lib/i18n/types";
 import { useI18n } from "@/providers/i18n-provider";
-import React, { useMemo, useState } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
 import Slider from "@react-native-community/slider";
+import React, { useMemo, useState } from "react";
+import { Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Calendar, type DateData } from "react-native-calendars";
 
 /** Track horizontal inset (logical px) so labels align roughly with the @react-native-community/slider thumb center. */
@@ -227,7 +221,9 @@ function SearchGeoSection({
             </ThemedText>
           </Pressable>
         </View>
-        <ThemedText type="bodyMuted">{screenT("searchGeoHintNoCenter")}</ThemedText>
+        <ThemedText type="bodyMuted">
+          {screenT("searchGeoHintNoCenter")}
+        </ThemedText>
       </View>
     );
   }
@@ -292,7 +288,8 @@ function SearchGeoSection({
                 key={key}
                 style={{
                   position: "absolute",
-                  left: radiusLabelLayout.centers[i] - radiusLabelLayout.slotW / 2,
+                  left:
+                    radiusLabelLayout.centers[i] - radiusLabelLayout.slotW / 2,
                   width: radiusLabelLayout.slotW,
                   top: 0,
                   alignItems: "center",
@@ -495,6 +492,7 @@ export function SearchFilterRow({
   );
 
   const hasAnyDate = occurredFrom != null || occurredTo != null;
+  const hasActiveFilter = category !== "all" || hasAnyDate || searchGeo != null;
   const rangeSummary = formatRangeSummary(locale, occurredFrom, occurredTo);
 
   const todayYmd = toLocalYmd(new Date());
@@ -522,13 +520,11 @@ export function SearchFilterRow({
     [c],
   );
 
-  const calendarCurrent =
-    draft.end ?? draft.start ?? todayYmd;
+  const calendarCurrent = draft.end ?? draft.start ?? todayYmd;
 
   const openRangeModal = () => {
     const max = todayYmd;
-    const startRaw =
-      occurredFrom != null ? toLocalYmd(occurredFrom) : null;
+    const startRaw = occurredFrom != null ? toLocalYmd(occurredFrom) : null;
     const endRaw = occurredTo != null ? toLocalYmd(occurredTo) : null;
     const start = startRaw != null ? clampYmd(startRaw, max) : null;
     const end = endRaw != null ? clampYmd(endRaw, max) : null;
@@ -587,6 +583,19 @@ export function SearchFilterRow({
     setRangeVisible(false);
   };
 
+  let filterIconColor = c.textPrimary;
+  let filterBtnStyle: object | null = null;
+
+  if (hasActiveFilter && isFilterExpanded) {
+    filterBtnStyle = { backgroundColor: "#1f883d", borderColor: "#1f883d" };
+    filterIconColor = "#fff";
+  } else if (hasActiveFilter && !isFilterExpanded) {
+    filterIconColor = "#1f883d";
+  } else if (isFilterExpanded) {
+    filterBtnStyle = styles.cameraFabActive;
+    filterIconColor = c.onBrand;
+  }
+
   return (
     <View style={styles.wrap}>
       <View
@@ -611,19 +620,16 @@ export function SearchFilterRow({
         </Pressable>
         <IconButton
           onPress={onToggleFilterExpanded}
-          style={[
-            styles.cameraFab,
-            isFilterExpanded ? styles.cameraFabActive : null,
-          ]}
+          style={[styles.cameraFab, filterBtnStyle]}
         >
           <IconSymbol
             name={
-              isFilterExpanded
+              isFilterExpanded || hasActiveFilter
                 ? "line.3.horizontal.decrease.circle.fill"
                 : "line.3.horizontal.decrease.circle"
             }
             size={22}
-            color={isFilterExpanded ? c.onBrand : c.textPrimary}
+            color={filterIconColor}
           />
         </IconButton>
       </View>
@@ -728,10 +734,7 @@ export function SearchFilterRow({
                 style={[styles.modalBtn, styles.modalBtnPrimary]}
                 onPress={applyDraftAndClose}
               >
-                <ThemedText
-                  type="defaultSemiBold"
-                  style={{ color: c.onBrand }}
-                >
+                <ThemedText type="defaultSemiBold" style={{ color: c.onBrand }}>
                   {screenT("occurredRangeDone")}
                 </ThemedText>
               </Pressable>
