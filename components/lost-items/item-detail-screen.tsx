@@ -266,11 +266,14 @@ export function ItemDetailScreen() {
   const description = item.description?.trim() ?? "";
   const location = item.locationText?.trim() ?? "";
   const poster = item.postedBy ?? null;
-  const isOwnPoster =
-    poster != null && authUser != null && poster.id === authUser.id;
   const sourcePostUrl = item.sourcePostUrl?.trim() || null;
   const platformTag = formatItemPlatformTag(item, t);
   const isFbGroupImport = isFacebookImport(item);
+  const isOwnPoster =
+    !isFbGroupImport &&
+    poster != null &&
+    authUser != null &&
+    poster.id === authUser.id;
   const canMessagePoster =
     !isFbGroupImport && poster != null && !isOwnPoster;
 
@@ -407,7 +410,7 @@ export function ItemDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 14) },
         ]}
       >
-        {isFbGroupImport && !isOwnPoster ? (
+        {isFbGroupImport ? (
           <Pressable
             style={styles.contactBtn}
             onPress={handleOpenSourcePost}
