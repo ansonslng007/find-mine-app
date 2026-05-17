@@ -1,3 +1,4 @@
+import { nominatimReverse } from "@/lib/nominatim";
 import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -505,21 +506,7 @@ export function LostItemForm() {
 
       // Reverse geocode via Nominatim (replaces deprecated Google Geocoding API)
       try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-          {
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "FindMyApp/1.0",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Nominatim API request failed");
-        }
-
-        const data = await response.json();
+        const data = await nominatimReverse(latitude, longitude);
         console.log(data, "addressResult from Nominatim");
 
         if (data && data.address) {

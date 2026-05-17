@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { nominatimReverse } from "@/lib/nominatim";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import * as Location from "expo-location";
@@ -98,25 +99,6 @@ type Props = Readonly<{
   locationFailedTitle: string;
   locationFailedBody: string;
 }>;
-
-async function nominatimReverse(
-  lat: number,
-  lng: number,
-  signal: AbortSignal,
-): Promise<unknown> {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}`;
-  const response = await fetch(url, {
-    signal,
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "FindMyApp/1.0",
-    },
-  });
-  if (!response.ok) {
-    throw new Error("reverse geocode failed");
-  }
-  return response.json();
-}
 
 export function MapPickLocationModal({
   visible,

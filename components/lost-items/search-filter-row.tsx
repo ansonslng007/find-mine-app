@@ -13,7 +13,7 @@ import type { AppLocale } from "@/lib/i18n/types";
 import { useI18n } from "@/providers/i18n-provider";
 import Slider from "@react-native-community/slider";
 import React, { useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Calendar, type DateData } from "react-native-calendars";
 
 /** Track horizontal inset (logical px) so labels align roughly with the @react-native-community/slider thumb center. */
@@ -53,6 +53,7 @@ type Props = Readonly<{
   searchGeo: SearchGeoState;
   onPressPickSearchCenterMap: () => void;
   onPressSearchCenterGps: () => void;
+  isLocatingGps?: boolean;
   onChangeSearchRadiusMeters: (meters: number) => void;
   onClearSearchGeo: () => void;
   category: LostItemCategoryId;
@@ -151,6 +152,7 @@ type SearchGeoSectionProps = Readonly<{
   searchGeo: SearchGeoState;
   onPressPickSearchCenterMap: () => void;
   onPressSearchCenterGps: () => void;
+  isLocatingGps?: boolean;
   onChangeSearchRadiusMeters: (meters: number) => void;
   onClearSearchGeo: () => void;
   styles: {
@@ -172,6 +174,7 @@ function SearchGeoSection({
   searchGeo,
   onPressPickSearchCenterMap,
   onPressSearchCenterGps,
+  isLocatingGps,
   onChangeSearchRadiusMeters,
   onClearSearchGeo,
   styles,
@@ -210,8 +213,16 @@ function SearchGeoSection({
               {screenT("searchGeoPickMap")}
             </ThemedText>
           </Pressable>
-          <Pressable style={styles.geoBtn} onPress={onPressSearchCenterGps}>
-            <IconSymbol name="location.fill" size={20} color={textMuted} />
+          <Pressable
+            style={styles.geoBtn}
+            onPress={onPressSearchCenterGps}
+            disabled={isLocatingGps}
+          >
+            {isLocatingGps ? (
+              <ActivityIndicator size="small" color={textMuted} />
+            ) : (
+              <IconSymbol name="location.fill" size={20} color={textMuted} />
+            )}
             <ThemedText
               type="defaultSemiBold"
               style={{ color: textPrimary, fontSize: 14 }}
@@ -246,8 +257,16 @@ function SearchGeoSection({
             {screenT("searchGeoPickMap")}
           </ThemedText>
         </Pressable>
-        <Pressable style={styles.geoBtn} onPress={onPressSearchCenterGps}>
-          <IconSymbol name="location.fill" size={20} color={textMuted} />
+        <Pressable
+          style={styles.geoBtn}
+          onPress={onPressSearchCenterGps}
+          disabled={isLocatingGps}
+        >
+          {isLocatingGps ? (
+            <ActivityIndicator size="small" color={textMuted} />
+          ) : (
+            <IconSymbol name="location.fill" size={20} color={textMuted} />
+          )}
           <ThemedText
             type="defaultSemiBold"
             style={{ color: textPrimary, fontSize: 14 }}
