@@ -1,20 +1,20 @@
-import { nominatimReverse } from "@/lib/nominatim";
-import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
+import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";
 import type { ItemKind } from "@/lib/api/items";
 import { analyzeItemImage } from "@/lib/api/items";
+import { nominatimReverse } from "@/lib/nominatim";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
 import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image as ExpoImage } from "expo-image";
-import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { Calendar } from "react-native-calendars";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,9 +28,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
-import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
 
 const SUBMIT_CATEGORY_IDS = new Set<string>(
   LOST_ITEM_CATEGORY_IDS.filter((id) => id !== "all"),
@@ -182,14 +182,6 @@ export function LostItemForm() {
     return () => {
       mounted = false;
     };
-  }, []);
-
-  // Auto-fetch current location
-  useEffect(() => {
-    const initializeLocation = async () => {
-      await getCurrentLocation();
-    };
-    initializeLocation();
   }, []);
 
   useEffect(() => {
@@ -456,8 +448,7 @@ export function LostItemForm() {
       onSuccess: (data) => {
         setSubmitMessage(
           t("form.submitSuccess", {
-            kind:
-              kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
+            kind: kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
             id: data.item.id,
             time: time.trim() || t("common.notProvided"),
             location: location.trim() || t("common.notProvided"),
@@ -708,7 +699,10 @@ export function LostItemForm() {
             <Pressable
               style={[
                 styles.calendarModalCard,
-                { backgroundColor: c.cardBackground, borderColor: c.borderSubtle },
+                {
+                  backgroundColor: c.cardBackground,
+                  borderColor: c.borderSubtle,
+                },
               ]}
               onPress={() => {}}
             >
@@ -750,43 +744,42 @@ export function LostItemForm() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.useCurrentLocationButton,
-            {
-              backgroundColor: c.brand,
-            },
-          ]}
-          onPress={getCurrentLocation}
-          disabled={locationLoading}
-        >
-          {locationLoading ? (
-            <ActivityIndicator size="small" color={c.onBrand} />
-          ) : (
-            <Text
-              style={[
-                styles.useCurrentLocationButtonText,
-                { color: c.onBrand },
-              ]}
-            >
+        <View style={styles.locationButtonsRow}>
+          <TouchableOpacity
+            style={[
+              styles.locationBtn,
+              { backgroundColor: c.chipBackground },
+            ]}
+            onPress={() => setMapPickVisible(true)}
+            activeOpacity={0.85}
+          >
+            <IconSymbol name="map" size={18} color={c.textPrimary} />
+            <Text style={[styles.locationBtnText, { color: c.textPrimary }]}>
+              {t("form.pickOnMap")}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.locationBtn,
+              {
+                backgroundColor: c.chipBackground,
+                opacity: locationLoading ? 0.4 : 1,
+              },
+            ]}
+            onPress={getCurrentLocation}
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <ActivityIndicator size="small" color={c.textPrimary} />
+            ) : (
+              <IconSymbol name="location.fill" size={18} color={c.textPrimary} />
+            )}
+            <Text style={[styles.locationBtnText, { color: c.textPrimary }]}>
               {t("form.useGps")}
             </Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.pickOnMapButton,
-            { borderColor: c.brand, backgroundColor: c.cardBackground },
-          ]}
-          onPress={() => setMapPickVisible(true)}
-          activeOpacity={0.85}
-        >
-          <IconSymbol name="map" size={18} color={c.brand} />
-          <Text style={[styles.pickOnMapButtonText, { color: c.brand }]}>
-            {t("form.pickOnMap")}
-          </Text>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
         <View
           style={[
@@ -1303,30 +1296,22 @@ function createLostItemFormStyles() {
       zIndex: 50,
       paddingVertical: 4,
     },
-    useCurrentLocationButton: {
+    locationButtonsRow: {
+      flexDirection: "row",
       marginTop: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
+      gap: 10,
     },
-    useCurrentLocationButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
-    },
-    pickOnMapButton: {
-      marginTop: 10,
+    locationBtn: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 999,
-      borderWidth: 2,
+      borderRadius: 12,
     },
-    pickOnMapButtonText: {
+    locationBtnText: {
       fontSize: 14,
       fontWeight: "700",
     },
