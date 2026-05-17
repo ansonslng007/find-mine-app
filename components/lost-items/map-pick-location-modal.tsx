@@ -552,6 +552,8 @@ export function MapPickLocationModal({
     [insets.top],
   );
 
+  const canConfirm = !!addressLabel && !reverseLoading && !mapMoving;
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
@@ -640,9 +642,13 @@ export function MapPickLocationModal({
           ]}
         >
           <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: c.brand }]}
+            style={[
+              styles.confirmBtn,
+              { backgroundColor: c.brand, opacity: canConfirm ? 1 : 0.4 },
+            ]}
             onPress={handleConfirm}
             activeOpacity={0.88}
+            disabled={!canConfirm}
           >
             <Text style={[styles.confirmBtnText, { color: c.onBrand }]}>
               {confirmLabel}
