@@ -746,10 +746,7 @@ export function LostItemForm() {
 
         <View style={styles.locationButtonsRow}>
           <TouchableOpacity
-            style={[
-              styles.locationBtn,
-              { backgroundColor: c.chipBackground },
-            ]}
+            style={[styles.locationBtn, { backgroundColor: c.chipBackground }]}
             onPress={() => setMapPickVisible(true)}
             activeOpacity={0.85}
           >
@@ -773,7 +770,11 @@ export function LostItemForm() {
             {locationLoading ? (
               <ActivityIndicator size="small" color={c.textPrimary} />
             ) : (
-              <IconSymbol name="location.fill" size={18} color={c.textPrimary} />
+              <IconSymbol
+                name="location.fill"
+                size={18}
+                color={c.textPrimary}
+              />
             )}
             <Text style={[styles.locationBtnText, { color: c.textPrimary }]}>
               {t("form.useGps")}
@@ -781,15 +782,7 @@ export function LostItemForm() {
           </TouchableOpacity>
         </View>
 
-        <View
-          style={[
-            styles.autocompleteContainer,
-            {
-              borderColor: c.borderSubtle,
-              backgroundColor: c.cardBackground,
-            },
-          ]}
-        >
+        <View style={styles.autocompleteContainer}>
           {GooglePlacesAutocompleteComponent ? (
             <GooglePlacesAutocompleteComponent
               placeholder={t("form.placesPlaceholder")}
@@ -821,15 +814,19 @@ export function LostItemForm() {
                 textInputContainer: {
                   width: "100%",
                   backgroundColor: c.chipBackground,
+                  borderColor: c.borderSubtle,
+                  borderWidth: StyleSheet.hairlineWidth,
                   borderRadius: 999,
-                  borderWidth: 0,
-                  paddingHorizontal: 4,
+                  height: undefined, // Override library's default height: 44
                 },
                 textInput: {
-                  height: 48,
                   color: c.textPrimary,
-                  fontSize: 16,
+                  fontSize: 15,
                   paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  backgroundColor: "transparent",
+                  margin: 0,
+                  height: undefined, // Override library's default height: 44
                 },
                 predefinedPlacesDescription: {
                   color: c.brand,
@@ -1290,11 +1287,8 @@ function createLostItemFormStyles() {
     },
     autocompleteContainer: {
       marginTop: 10,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 16,
-      overflow: "visible",
       zIndex: 50,
-      paddingVertical: 4,
+      overflow: "visible",
     },
     locationButtonsRow: {
       flexDirection: "row",
