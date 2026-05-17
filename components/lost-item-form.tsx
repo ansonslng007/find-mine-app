@@ -1,3 +1,4 @@
+import { CategoryPickerModal } from "@/components/lost-items/category-picker-modal";
 import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
 import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -135,6 +136,7 @@ export function LostItemForm() {
   const [timeInputError, setTimeInputError] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [kind, setKind] = useState<ItemKind>("lost");
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
@@ -895,7 +897,7 @@ export function LostItemForm() {
           </Text>
           <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
-        <View
+        <TouchableOpacity
           style={[
             styles.inputShell,
             {
@@ -903,16 +905,14 @@ export function LostItemForm() {
               borderColor: c.borderSubtle,
             },
           ]}
+          onPress={() => setCategoryModalVisible(true)}
+          activeOpacity={0.8}
         >
-          <TextInput
-            style={[styles.inputBare, { color: c.textPrimary }]}
-            placeholder={t("form.categoryPlaceholder")}
-            placeholderTextColor={c.placeholder}
-            value={category}
-            onChangeText={setCategory}
-          />
+          <Text style={[styles.inputBare, { color: category ? c.textPrimary : c.placeholder }]}>
+            {category ? t(`categories.${category}`) : t("form.categoryPlaceholder")}
+          </Text>
           <IconSymbol name="chevron.down" size={22} color={c.textMuted} />
-        </View>
+        </TouchableOpacity>
         <ThemedText style={[styles.hint, { color: c.textMuted }]}>
           {objectHint}
         </ThemedText>
@@ -1089,6 +1089,16 @@ export function LostItemForm() {
           {submitError}
         </ThemedText>
       ) : null}
+
+      <CategoryPickerModal
+        visible={categoryModalVisible}
+        onClose={() => setCategoryModalVisible(false)}
+        onSelect={(id) => {
+          setCategory(id);
+          setCategoryModalVisible(false);
+        }}
+        suggestedCategory={backendFillSnapshot?.category}
+      />
     </PageLayoutWithHeader>
   );
 }
