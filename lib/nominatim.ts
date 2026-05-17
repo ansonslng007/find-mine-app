@@ -8,7 +8,7 @@ export async function nominatimReverse(
   lng: number,
   signal?: AbortSignal,
 ): Promise<NominatimReverseResponse> {
-  const url = `https://nominatim.openstreetmap.or}/reverse?format=json&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}`;
   const response = await fetch(url, {
     signal,
     headers: {
