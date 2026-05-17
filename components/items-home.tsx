@@ -5,15 +5,15 @@ import {
   type TranslateFn,
 } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
-import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
+import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
 import {
   SearchByImageSheet,
   type SheetStatusKind,
-} from "@/components/lost-items/search-by-image-sheet";
+} from "@/components/modal/search-by-image-sheet";
 import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
-import { type LostItemCategoryId } from "@/constants/mock-lost-items";
+import { type LostItemCategoryId } from "@/constants/items";
 import {
   DEFAULT_SEARCH_RADIUS_METERS,
   type SearchRadiusMetersChoice,
@@ -24,9 +24,9 @@ import { ApiError } from "@/lib/api/client";
 import type { Item, ItemKind } from "@/lib/api/items";
 import { searchByText } from "@/lib/api/items";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
+import type { LocationPickChange } from "@/components/location/location-pick-field";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -392,13 +392,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
           searchRadiusMeters,
         ),
     );
-  }, [
-    data?.items,
-    category,
-    searchNearLat,
-    searchNearLng,
-    searchRadiusMeters,
-  ]);
+  }, [data?.items, category, searchNearLat, searchNearLng, searchRadiusMeters]);
 
   const similarItems = useMemo(
     () =>
@@ -413,11 +407,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       similarItems.filter(
         (item) =>
           passesCategoryChip(item, category) &&
-          itemMatchesOccurredRange(
-            item,
-            occurredAfterIso,
-            occurredBeforeIso,
-          ) &&
+          itemMatchesOccurredRange(item, occurredAfterIso, occurredBeforeIso) &&
           itemMatchesSearchGeo(
             item,
             searchNearLat,
@@ -443,11 +433,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     return textResults.filter(
       (item) =>
         passesCategoryChip(item, category) &&
-        itemMatchesOccurredRange(
-          item,
-          occurredAfterIso,
-          occurredBeforeIso,
-        ) &&
+        itemMatchesOccurredRange(item, occurredAfterIso, occurredBeforeIso) &&
         itemMatchesSearchGeo(
           item,
           searchNearLat,
@@ -617,30 +603,14 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     setQuery(q);
   };
 
-  const handleSearchGeoGps = async () => {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
-      return;
-    }
-    try {
-      const pos = await Location.getCurrentPositionAsync({});
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
-        return;
-      }
-      setSearchGeo((prev) => ({
-        lat,
-        lng,
-        label: homeT("searchGeoGpsLabel"),
-        radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
-      }));
-    } catch {
-      Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
-    }
-  };
+  const handleSearchLocationChange = useCallback((value: LocationPickChange) => {
+    setSearchGeo((prev) => ({
+      lat: value.lat,
+      lng: value.lng,
+      label: value.label,
+      radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
+    }));
+  }, []);
 
   const handleChangeSearchRadiusMeters = (meters: number) => {
     setSearchGeo((prev) => {
@@ -702,7 +672,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         }}
         searchGeo={searchGeo}
         onPressPickSearchCenterMap={() => setMapSearchGeoVisible(true)}
-        onPressSearchCenterGps={handleSearchGeoGps}
+        onSearchLocationChange={handleSearchLocationChange}
         onChangeSearchRadiusMeters={handleChangeSearchRadiusMeters}
         onClearSearchGeo={() => setSearchGeo(null)}
         category={category}
@@ -721,9 +691,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
           setMapSearchGeoVisible(false);
         }}
         initialCenter={
-          searchGeo != null
-            ? { lat: searchGeo.lat, lng: searchGeo.lng }
-            : null
+          searchGeo != null ? { lat: searchGeo.lat, lng: searchGeo.lng } : null
         }
         formatAddressFromNominatim={formatNominatimAddress}
         title={t("form.mapPickTitle")}

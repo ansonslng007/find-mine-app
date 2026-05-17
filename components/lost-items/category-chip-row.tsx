@@ -1,7 +1,7 @@
 import {
   LOST_ITEM_CATEGORY_IDS,
   type LostItemCategoryId,
-} from "@/constants/mock-lost-items";
+} from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo } from "react";

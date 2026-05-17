@@ -1,7 +1,7 @@
 import {
   SearchByImageSheet,
   type SheetStatusKind,
-} from "@/components/lost-items/search-by-image-sheet";
+} from "@/components/modal/search-by-image-sheet";
 import { PillButton } from "@/components/ui/pill-button";
 import { ApiError } from "@/lib/api/client";
 import { analyzeItemImage } from "@/lib/api/items";

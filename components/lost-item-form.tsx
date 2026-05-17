@@ -1,6 +1,10 @@
-import { SearchByImageSheet } from "@/components/lost-items/search-by-image-sheet";
-import { MapPickLocationModal } from "@/components/lost-items/map-pick-location-modal";
+import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
+import { DatePickerModal } from "@/components/modal/date-picker-modal";
+import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
+import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
+import { LocationPickField } from "@/components/location/location-pick-field";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
 import { ApiError } from "@/lib/api/client";
@@ -10,16 +14,13 @@ import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-addr
 import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image as ExpoImage } from "expo-image";
-import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location";
-import { Calendar } from "react-native-calendars";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   InteractionManager,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -29,58 +30,12 @@ import {
 } from "react-native";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
-import { LOST_ITEM_CATEGORY_IDS } from "@/constants/mock-lost-items";
+
+import type { PlaceGeometry } from "@/lib/places-geometry";
 
 const SUBMIT_CATEGORY_IDS = new Set<string>(
   LOST_ITEM_CATEGORY_IDS.filter((id) => id !== "all"),
 );
-
-/** Geometry returned from Place Details (location + optional viewport). */
-interface PlaceGeometry {
-  location: { lat: number; lng: number };
-  viewport?: unknown;
-}
-
-/** Parse geometry from `details` in `onPress(data, details)` (i.e. `result`). */
-function extractPlaceGeometry(details: unknown): PlaceGeometry | null {
-  if (!details || typeof details !== "object") {
-    return null;
-  }
-  const d = details as { geometry?: unknown };
-  const geometry = d.geometry;
-  if (!geometry || typeof geometry !== "object") {
-    return null;
-  }
-  const g = geometry as {
-    location?: unknown;
-    viewport?: unknown;
-  };
-  if (!g.location || typeof g.location !== "object") {
-    return null;
-  }
-  const loc = g.location as { lat?: unknown; lng?: unknown };
-  const rawLat = loc.lat;
-  const rawLng = loc.lng;
-  const lat =
-    typeof rawLat === "function"
-      ? (rawLat as () => number)()
-      : typeof rawLat === "number"
-        ? rawLat
-        : Number(rawLat);
-  const lng =
-    typeof rawLng === "function"
-      ? (rawLng as () => number)()
-      : typeof rawLng === "number"
-        ? rawLng
-        : Number(rawLng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return null;
-  }
-  return {
-    location: { lat, lng },
-    viewport: g.viewport,
-  };
-}
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -134,19 +89,15 @@ export function LostItemForm() {
   const [timeInputError, setTimeInputError] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [kind, setKind] = useState<ItemKind>("lost");
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
-  const [locationLoading, setLocationLoading] = useState(false);
   const [placeGeometry, setPlaceGeometry] = useState<PlaceGeometry | null>(
     null,
   );
   const [mapPickVisible, setMapPickVisible] = useState(false);
-  const [
-    GooglePlacesAutocompleteComponent,
-    setGooglePlacesAutocompleteComponent,
-  ] = useState<React.ComponentType<any> | null>(null);
   const c = useAppColors();
   const { t, locale } = useI18n();
   const styles = useMemo(() => createLostItemFormStyles(), []);
@@ -163,33 +114,6 @@ export function LostItemForm() {
     setObjectHint(t("form.categoryHintDefault"));
   }, [t, locale]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    import("react-native-google-places-autocomplete")
-      .then((mod) => {
-        if (mounted) {
-          setGooglePlacesAutocompleteComponent(
-            () => mod.GooglePlacesAutocomplete,
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Load GooglePlacesAutocomplete failed:", error);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Auto-fetch current location
-  useEffect(() => {
-    const initializeLocation = async () => {
-      await getCurrentLocation();
-    };
-    initializeLocation();
-  }, []);
 
   useEffect(() => {
     if (!pendingDraft) {
@@ -455,8 +379,7 @@ export function LostItemForm() {
       onSuccess: (data) => {
         setSubmitMessage(
           t("form.submitSuccess", {
-            kind:
-              kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
+            kind: kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
             id: data.item.id,
             time: time.trim() || t("common.notProvided"),
             location: location.trim() || t("common.notProvided"),
@@ -478,111 +401,13 @@ export function LostItemForm() {
     });
   };
 
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      return status === "granted";
-    } catch (error) {
-      console.error("Location permission error:", error);
-      return false;
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    setLocationLoading(true);
-    try {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
-        return;
-      }
-
-      const locationResult = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const { latitude, longitude } = locationResult.coords;
-
-      // Reverse geocode via Nominatim (replaces deprecated Google Geocoding API)
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
-          {
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "FindMyApp/1.0",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Nominatim API request failed");
-        }
-
-        const data = await response.json();
-        console.log(data, "addressResult from Nominatim");
-
-        if (data && data.address) {
-          const readableAddress = generateReadableAddressFromNominatim(
-            data.address,
-            data.name || "",
-            latitude,
-            longitude,
-          );
-          setLocation(readableAddress);
-        } else {
-          setLocation(
-            t("address.unknownPin", {
-              lat: latitude.toFixed(4),
-              lng: longitude.toFixed(4),
-            }),
-          );
-        }
-        setPlaceGeometry({
-          location: { lat: latitude, lng: longitude },
-        });
-      } catch (error) {
-        console.error("Reverse geocoding error:", error);
-        setLocation(
-          t("address.coordsPin", {
-            lat: latitude.toFixed(4),
-            lng: longitude.toFixed(4),
-          }),
-        );
-        setPlaceGeometry({
-          location: { lat: latitude, lng: longitude },
-        });
-      }
-    } catch (error) {
-      console.error("Get location error:", error);
-      Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
-    } finally {
-      setLocationLoading(false);
-    }
-  };
-
-  const handlePlacesSelect = (data: any, details: any) => {
-    const selectedAddress =
-      typeof data?.description === "string" ? data.description : "";
-    setLocation(selectedAddress);
-
-    const geometry = extractPlaceGeometry(details);
-    setPlaceGeometry(geometry);
-
-    if (geometry) {
-      if (__DEV__) {
-        console.log("[Places] geometry", {
-          location: geometry.location,
-          viewport: geometry.viewport,
-          place_id: (details as { place_id?: string })?.place_id,
-        });
-      }
-    } else {
-      console.warn(
-        "[Places] No geometry returned. Ensure fetchDetails is set, the API key has Place Details enabled, and GooglePlacesDetailsQuery requests geometry fields.",
-        details,
-      );
-    }
+  const handleLocationPickChange = (value: {
+    label: string;
+    lat: number;
+    lng: number;
+  }) => {
+    setLocation(value.label);
+    setPlaceGeometry({ location: { lat: value.lat, lng: value.lng } });
   };
 
   const titleLabel =
@@ -708,51 +533,14 @@ export function LostItemForm() {
             {timeInputError}
           </ThemedText>
         ) : null}
-        <Modal
+        <DatePickerModal
           visible={showDatePicker}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <Pressable
-            style={styles.calendarModalOverlay}
-            onPress={() => setShowDatePicker(false)}
-          >
-            <Pressable
-              style={[
-                styles.calendarModalCard,
-                { backgroundColor: c.cardBackground, borderColor: c.borderSubtle },
-              ]}
-              onPress={() => {}}
-            >
-              <Calendar
-                current={formatDateInputValue(pickedOccurredAt ?? new Date())}
-                maxDate={formatDateInputValue(new Date())}
-                onDayPress={handleCalendarDayPress}
-                markedDates={
-                  time && !timeInputError
-                    ? {
-                        [time]: {
-                          selected: true,
-                          selectedColor: c.brand,
-                        },
-                      }
-                    : undefined
-                }
-                theme={{
-                  calendarBackground: c.cardBackground,
-                  textSectionTitleColor: c.textMuted,
-                  dayTextColor: c.textPrimary,
-                  monthTextColor: c.textPrimary,
-                  arrowColor: c.brand,
-                  selectedDayBackgroundColor: c.brand,
-                  selectedDayTextColor: c.onBrand,
-                  todayTextColor: c.brand,
-                }}
-              />
-            </Pressable>
-          </Pressable>
-        </Modal>
+          onClose={() => setShowDatePicker(false)}
+          currentDate={formatDateInputValue(pickedOccurredAt ?? new Date())}
+          maxDate={formatDateInputValue(new Date())}
+          selectedDateString={time && !timeInputError ? time : undefined}
+          onDayPress={handleCalendarDayPress}
+        />
       </View>
 
       <View style={styles.formGroup}>
@@ -763,152 +551,18 @@ export function LostItemForm() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.useCurrentLocationButton,
-            {
-              backgroundColor: c.brand,
-            },
-          ]}
-          onPress={getCurrentLocation}
-          disabled={locationLoading}
-        >
-          {locationLoading ? (
-            <ActivityIndicator size="small" color={c.onBrand} />
-          ) : (
-            <Text
-              style={[
-                styles.useCurrentLocationButtonText,
-                { color: c.onBrand },
-              ]}
-            >
-              {t("form.useGps")}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.pickOnMapButton,
-            { borderColor: c.brand, backgroundColor: c.cardBackground },
-          ]}
-          onPress={() => setMapPickVisible(true)}
-          activeOpacity={0.85}
-        >
-          <IconSymbol name="map" size={18} color={c.brand} />
-          <Text style={[styles.pickOnMapButtonText, { color: c.brand }]}>
-            {t("form.pickOnMap")}
-          </Text>
-        </TouchableOpacity>
-
-        <View
-          style={[
-            styles.autocompleteContainer,
-            {
-              borderColor: c.borderSubtle,
-              backgroundColor: c.cardBackground,
-            },
-          ]}
-        >
-          {GooglePlacesAutocompleteComponent ? (
-            <GooglePlacesAutocompleteComponent
-              placeholder={t("form.placesPlaceholder")}
-              onPress={handlePlacesSelect}
-              fetchDetails
-              debounce={300}
-              listViewDisplayed="auto"
-              keepResultsAfterBlur
-              enablePoweredByContainer={false}
-              GooglePlacesDetailsQuery={{
-                fields: "geometry,formatted_address,name,place_id",
-              }}
-              query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-                language: locale === "zh-Hant" ? "zh-HK" : "en",
-                components: "country:hk",
-              }}
-              onFail={(error: any) => {
-                console.error("Google places autocomplete error:", error);
-              }}
-              textInputProps={{
-                placeholderTextColor: c.placeholder,
-              }}
-              styles={{
-                container: {
-                  flex: 0,
-                  width: "100%",
-                },
-                textInputContainer: {
-                  width: "100%",
-                  backgroundColor: c.chipBackground,
-                  borderRadius: 999,
-                  borderWidth: 0,
-                  paddingHorizontal: 4,
-                },
-                textInput: {
-                  height: 48,
-                  color: c.textPrimary,
-                  fontSize: 16,
-                  paddingHorizontal: 16,
-                },
-                predefinedPlacesDescription: {
-                  color: c.brand,
-                },
-                listView: {
-                  position: "absolute",
-                  top: 52,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: c.cardBackground,
-                  zIndex: 1000,
-                  elevation: 10,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                },
-                row: {
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  borderBottomColor: c.borderSubtle,
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                },
-                description: {
-                  fontSize: 14,
-                  color: c.textMuted,
-                },
-                loader: {
-                  flexDirection: "row",
-                  justifyContent: "flex-end",
-                  height: 20,
-                },
-              }}
-            />
-          ) : (
-            <ActivityIndicator size="small" color={c.brand} />
-          )}
-        </View>
-
-        {location ? (
-          <View
-            style={[styles.locationInfo, { backgroundColor: c.chipBackground }]}
-          >
-            <ThemedText
-              style={[styles.locationInfoText, { color: c.textPrimary }]}
-            >
-              {t("form.selectedPrefix")}
-              {location}
-            </ThemedText>
-            {placeGeometry ? (
-              <ThemedText
-                style={[styles.locationGeometryText, { color: c.textMuted }]}
-              >
-                {t("form.coordsLine", {
-                  lat: placeGeometry.location.lat.toFixed(6),
-                  lng: placeGeometry.location.lng.toFixed(6),
-                })}
-              </ThemedText>
-            ) : null}
-          </View>
-        ) : null}
+        <LocationPickField
+          addressLabel={location}
+          onLocationChange={handleLocationPickChange}
+          onPressPickOnMap={() => setMapPickVisible(true)}
+          showSelectedInfo
+          selectedPrefix={t("form.selectedPrefix")}
+          coordsLine={(lat, lng) =>
+            t("form.coordsLine", { lat: lat.toFixed(6), lng: lng.toFixed(6) })
+          }
+          lat={placeGeometry?.location.lat}
+          lng={placeGeometry?.location.lng}
+        />
       </View>
 
       <View style={styles.formGroup}>
@@ -918,7 +572,7 @@ export function LostItemForm() {
           </Text>
           <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
-        <View
+        <TouchableOpacity
           style={[
             styles.inputShell,
             {
@@ -926,16 +580,21 @@ export function LostItemForm() {
               borderColor: c.borderSubtle,
             },
           ]}
+          onPress={() => setCategoryModalVisible(true)}
+          activeOpacity={0.8}
         >
-          <TextInput
-            style={[styles.inputBare, { color: c.textPrimary }]}
-            placeholder={t("form.categoryPlaceholder")}
-            placeholderTextColor={c.placeholder}
-            value={category}
-            onChangeText={setCategory}
-          />
+          <Text
+            style={[
+              styles.inputBare,
+              { color: category ? c.textPrimary : c.placeholder },
+            ]}
+          >
+            {category
+              ? t(`categories.${category}`)
+              : t("form.categoryPlaceholder")}
+          </Text>
           <IconSymbol name="chevron.down" size={22} color={c.textMuted} />
-        </View>
+        </TouchableOpacity>
         <ThemedText style={[styles.hint, { color: c.textMuted }]}>
           {objectHint}
         </ThemedText>
@@ -1054,8 +713,11 @@ export function LostItemForm() {
         visible={mapPickVisible}
         onClose={() => setMapPickVisible(false)}
         onConfirm={(p) => {
-          setLocation(p.addressLabel);
-          setPlaceGeometry({ location: { lat: p.lat, lng: p.lng } });
+          handleLocationPickChange({
+            label: p.addressLabel,
+            lat: p.lat,
+            lng: p.lng,
+          });
           setMapPickVisible(false);
         }}
         initialCenter={placeGeometry?.location ?? null}
@@ -1112,6 +774,16 @@ export function LostItemForm() {
           {submitError}
         </ThemedText>
       ) : null}
+
+      <CategoryPickerModal
+        visible={categoryModalVisible}
+        onClose={() => setCategoryModalVisible(false)}
+        onSelect={(id) => {
+          setCategory(id);
+          setCategoryModalVisible(false);
+        }}
+        suggestedCategory={backendFillSnapshot?.category}
+      />
     </PageLayoutWithHeader>
   );
 }
@@ -1293,55 +965,6 @@ function createLostItemFormStyles() {
     },
     submitButtonDisabled: {
       opacity: 0.7,
-    },
-    locationInfo: {
-      marginTop: 10,
-      padding: 12,
-      borderRadius: 12,
-    },
-    locationInfoText: {
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    locationGeometryText: {
-      marginTop: 6,
-      fontSize: 11,
-      lineHeight: 16,
-    },
-    autocompleteContainer: {
-      marginTop: 10,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 16,
-      overflow: "visible",
-      zIndex: 50,
-      paddingVertical: 4,
-    },
-    useCurrentLocationButton: {
-      marginTop: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    useCurrentLocationButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
-    },
-    pickOnMapButton: {
-      marginTop: 10,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 999,
-      borderWidth: 2,
-    },
-    pickOnMapButtonText: {
-      fontSize: 14,
-      fontWeight: "700",
     },
     calendarModalOverlay: {
       flex: 1,
