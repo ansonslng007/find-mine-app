@@ -14,6 +14,7 @@ import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/mock-lost-items";
+import { nominatimReverse } from "@/lib/nominatim";
 import {
   DEFAULT_SEARCH_RADIUS_METERS,
   type SearchRadiusMetersChoice,
@@ -245,6 +246,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const [occurredTo, setOccurredTo] = useState<Date | null>(null);
   const [searchGeo, setSearchGeo] = useState<ItemsSearchGeo | null>(null);
   const [mapSearchGeoVisible, setMapSearchGeoVisible] = useState(false);
+  const [isLocatingGps, setIsLocatingGps] = useState(false);
 
   const formatNominatimAddress = useCallback(
     (address: unknown, name: string, lat: number, lng: number) =>
@@ -392,13 +394,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
           searchRadiusMeters,
         ),
     );
-  }, [
-    data?.items,
-    category,
-    searchNearLat,
-    searchNearLng,
-    searchRadiusMeters,
-  ]);
+  }, [data?.items, category, searchNearLat, searchNearLng, searchRadiusMeters]);
 
   const similarItems = useMemo(
     () =>
@@ -413,11 +409,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       similarItems.filter(
         (item) =>
           passesCategoryChip(item, category) &&
-          itemMatchesOccurredRange(
-            item,
-            occurredAfterIso,
-            occurredBeforeIso,
-          ) &&
+          itemMatchesOccurredRange(item, occurredAfterIso, occurredBeforeIso) &&
           itemMatchesSearchGeo(
             item,
             searchNearLat,
@@ -443,11 +435,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     return textResults.filter(
       (item) =>
         passesCategoryChip(item, category) &&
-        itemMatchesOccurredRange(
-          item,
-          occurredAfterIso,
-          occurredBeforeIso,
-        ) &&
+        itemMatchesOccurredRange(item, occurredAfterIso, occurredBeforeIso) &&
         itemMatchesSearchGeo(
           item,
           searchNearLat,
@@ -618,27 +606,52 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   };
 
   const handleSearchGeoGps = async () => {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
-      return;
-    }
+    setIsLocatingGps(true);
     try {
-      const pos = await Location.getCurrentPositionAsync({});
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t("form.permLocationTitle"), t("form.permLocationBody"));
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
+        Alert.alert(
+          t("form.locationFailedTitle"),
+          t("form.locationFailedBody"),
+        );
         return;
       }
+
+      let finalLabel = homeT("searchGeoGpsLabel");
+      try {
+        const data = await nominatimReverse(lat, lng);
+        if (data?.address) {
+          finalLabel = formatNominatimAddress(
+            data.address,
+            typeof data.name === "string" ? data.name : "",
+            lat,
+            lng,
+          );
+        }
+      } catch (e) {
+        console.warn("GPS reverse geocode failed:", e);
+        // Ignore reverse geocoding errors, fallback to default label
+      }
+
       setSearchGeo((prev) => ({
         lat,
         lng,
-        label: homeT("searchGeoGpsLabel"),
+        label: finalLabel,
         radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
       }));
     } catch {
       Alert.alert(t("form.locationFailedTitle"), t("form.locationFailedBody"));
+    } finally {
+      setIsLocatingGps(false);
     }
   };
 
@@ -703,6 +716,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         searchGeo={searchGeo}
         onPressPickSearchCenterMap={() => setMapSearchGeoVisible(true)}
         onPressSearchCenterGps={handleSearchGeoGps}
+        isLocatingGps={isLocatingGps}
         onChangeSearchRadiusMeters={handleChangeSearchRadiusMeters}
         onClearSearchGeo={() => setSearchGeo(null)}
         category={category}
@@ -721,9 +735,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
           setMapSearchGeoVisible(false);
         }}
         initialCenter={
-          searchGeo != null
-            ? { lat: searchGeo.lat, lng: searchGeo.lng }
-            : null
+          searchGeo != null ? { lat: searchGeo.lat, lng: searchGeo.lng } : null
         }
         formatAddressFromNominatim={formatNominatimAddress}
         title={t("form.mapPickTitle")}
