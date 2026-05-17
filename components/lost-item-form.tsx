@@ -1,7 +1,7 @@
-import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
-import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
 import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
 import { DatePickerModal } from "@/components/modal/date-picker-modal";
+import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
+import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -31,6 +31,7 @@ import {
 } from "react-native";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
 const SUBMIT_CATEGORY_IDS = new Set<string>(
   LOST_ITEM_CATEGORY_IDS.filter((id) => id !== "all"),
@@ -145,10 +146,6 @@ export function LostItemForm() {
     null,
   );
   const [mapPickVisible, setMapPickVisible] = useState(false);
-  const [
-    GooglePlacesAutocompleteComponent,
-    setGooglePlacesAutocompleteComponent,
-  ] = useState<React.ComponentType<any> | null>(null);
   const c = useAppColors();
   const { t, locale } = useI18n();
   const styles = useMemo(() => createLostItemFormStyles(), []);
@@ -165,25 +162,6 @@ export function LostItemForm() {
     setObjectHint(t("form.categoryHintDefault"));
   }, [t, locale]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    import("react-native-google-places-autocomplete")
-      .then((mod) => {
-        if (mounted) {
-          setGooglePlacesAutocompleteComponent(
-            () => mod.GooglePlacesAutocomplete,
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Load GooglePlacesAutocomplete failed:", error);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!pendingDraft) {
@@ -744,85 +722,81 @@ export function LostItemForm() {
         </View>
 
         <View style={styles.autocompleteContainer}>
-          {GooglePlacesAutocompleteComponent ? (
-            <GooglePlacesAutocompleteComponent
-              placeholder={t("form.placesPlaceholder")}
-              onPress={handlePlacesSelect}
-              fetchDetails
-              debounce={300}
-              listViewDisplayed="auto"
-              keepResultsAfterBlur
-              enablePoweredByContainer={false}
-              GooglePlacesDetailsQuery={{
-                fields: "geometry,formatted_address,name,place_id",
-              }}
-              query={{
-                key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-                language: locale === "zh-Hant" ? "zh-HK" : "en",
-                components: "country:hk",
-              }}
-              onFail={(error: any) => {
-                console.error("Google places autocomplete error:", error);
-              }}
-              textInputProps={{
-                placeholderTextColor: c.placeholder,
-              }}
-              styles={{
-                container: {
-                  flex: 0,
-                  width: "100%",
-                },
-                textInputContainer: {
-                  width: "100%",
-                  backgroundColor: c.chipBackground,
-                  borderColor: c.borderSubtle,
-                  borderWidth: StyleSheet.hairlineWidth,
-                  borderRadius: 999,
-                  height: undefined, // Override library's default height: 44
-                },
-                textInput: {
-                  color: c.textPrimary,
-                  fontSize: 15,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  backgroundColor: "transparent",
-                  margin: 0,
-                  height: undefined, // Override library's default height: 44
-                },
-                predefinedPlacesDescription: {
-                  color: c.brand,
-                },
-                listView: {
-                  position: "absolute",
-                  top: 52,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: c.cardBackground,
-                  zIndex: 1000,
-                  elevation: 10,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                },
-                row: {
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  borderBottomColor: c.borderSubtle,
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                },
-                description: {
-                  fontSize: 14,
-                  color: c.textMuted,
-                },
-                loader: {
-                  flexDirection: "row",
-                  justifyContent: "flex-end",
-                  height: 20,
-                },
-              }}
-            />
-          ) : (
-            <ActivityIndicator size="small" color={c.brand} />
-          )}
+          <GooglePlacesAutocomplete
+            placeholder={t("form.placesPlaceholder")}
+            onPress={handlePlacesSelect}
+            fetchDetails
+            debounce={300}
+            listViewDisplayed="auto"
+            keepResultsAfterBlur
+            enablePoweredByContainer={false}
+            GooglePlacesDetailsQuery={{
+              fields: "geometry,formatted_address,name,place_id",
+            }}
+            query={{
+              key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+              language: locale === "zh-Hant" ? "zh-HK" : "en",
+              components: "country:hk",
+            }}
+            onFail={(error: any) => {
+              console.error("Google places autocomplete error:", error);
+            }}
+            textInputProps={{
+              placeholderTextColor: c.placeholder,
+            }}
+            styles={{
+              container: {
+                flex: 0,
+                width: "100%",
+              },
+              textInputContainer: {
+                width: "100%",
+                backgroundColor: c.chipBackground,
+                borderColor: c.borderSubtle,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderRadius: 999,
+                height: undefined, // Override library's default height: 44
+              },
+              textInput: {
+                color: c.textPrimary,
+                fontSize: 15,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                backgroundColor: "transparent",
+                margin: 0,
+                height: undefined, // Override library's default height: 44
+              },
+              predefinedPlacesDescription: {
+                color: c.brand,
+              },
+              listView: {
+                position: "absolute",
+                top: 52,
+                left: 0,
+                right: 0,
+                backgroundColor: c.cardBackground,
+                zIndex: 1000,
+                elevation: 10,
+                borderRadius: 12,
+                overflow: "hidden",
+              },
+              row: {
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                borderBottomColor: c.borderSubtle,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+              },
+              description: {
+                fontSize: 14,
+                color: c.textMuted,
+              },
+              loader: {
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                height: 20,
+              },
+            }}
+          />
         </View>
 
         {location ? (
