@@ -15,7 +15,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import {
+  PlacesAddressAutocomplete,
+  type PlacesAddressAutocompleteRef,
+} from "@/components/location/places-address-autocomplete";
 
 export type LocationPickChange = Readonly<{
   label: string;
@@ -53,7 +56,7 @@ export function LocationPickField({
   const c = useAppColors();
   const { t, locale } = useI18n();
   const styles = useMemo(() => createStyles(c), [c]);
-  const placesRef = useRef<any>(null);
+  const placesRef = useRef<PlacesAddressAutocompleteRef | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
 
   const pickMapText = pickOnMapLabel ?? t("form.pickOnMap");
@@ -124,9 +127,7 @@ export function LocationPickField({
     }
   };
 
-  const handlePlacesSelect = (data: { description?: string }, details: unknown) => {
-    const selectedAddress =
-      typeof data?.description === "string" ? data.description : "";
+  const handlePlacesSelect = (selectedAddress: string, details: unknown) => {
     const geometry = extractPlaceGeometry(details);
     if (geometry) {
       applyLocation(
@@ -186,80 +187,15 @@ export function LocationPickField({
       </View>
 
       <View style={styles.autocompleteContainer}>
-        <GooglePlacesAutocomplete
+        <PlacesAddressAutocomplete
           ref={placesRef}
           placeholder={placeholder}
-          onPress={handlePlacesSelect}
-          fetchDetails
-          debounce={300}
-          listViewDisplayed="auto"
-          keepResultsAfterBlur
-          enablePoweredByContainer={false}
-          GooglePlacesDetailsQuery={{
-            fields: "geometry,formatted_address,name,place_id",
-          }}
-          query={{
-            key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
-            language: locale === "zh-Hant" ? "zh-HK" : "en",
-            components: "country:hk",
-          }}
+          language={locale === "zh-Hant" ? "zh-HK" : "en"}
+          country="hk"
+          debounceMs={300}
+          onSelect={handlePlacesSelect}
           onFail={(error: unknown) => {
             console.error("Google places autocomplete error:", error);
-          }}
-          textInputProps={{
-            placeholderTextColor: c.placeholder,
-          }}
-          styles={{
-            container: {
-              flex: 0,
-              width: "100%",
-            },
-            textInputContainer: {
-              width: "100%",
-              backgroundColor: c.chipBackground,
-              borderColor: c.borderSubtle,
-              borderWidth: StyleSheet.hairlineWidth,
-              borderRadius: 999,
-              height: undefined,
-            },
-            textInput: {
-              color: c.textPrimary,
-              fontSize: 15,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              backgroundColor: "transparent",
-              margin: 0,
-              height: undefined,
-            },
-            predefinedPlacesDescription: {
-              color: c.brand,
-            },
-            listView: {
-              position: "absolute",
-              top: 52,
-              left: 0,
-              right: 0,
-              backgroundColor: c.cardBackground,
-              zIndex: 1000,
-              elevation: 10,
-              borderRadius: 12,
-              overflow: "hidden",
-            },
-            row: {
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              borderBottomColor: c.borderSubtle,
-              borderBottomWidth: StyleSheet.hairlineWidth,
-            },
-            description: {
-              fontSize: 14,
-              color: c.textMuted,
-            },
-            loader: {
-              flexDirection: "row",
-              justifyContent: "flex-end",
-              height: 20,
-            },
           }}
         />
       </View>
