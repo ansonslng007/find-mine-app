@@ -34,6 +34,8 @@ const MAPPING = {
   "chevron.down": "keyboard-arrow-down",
   calendar: "calendar-today",
   "camera.fill": "photo-camera",
+  "line.3.horizontal.decrease.circle": "filter-list",
+  "line.3.horizontal.decrease.circle.fill": "filter-list",
   "photo.on.rectangle": "photo-library",
   "gearshape.fill": "settings",
   "questionmark.circle": "help-outline",
