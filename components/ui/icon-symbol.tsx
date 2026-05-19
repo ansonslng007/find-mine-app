@@ -46,6 +46,8 @@ const MAPPING = {
   "bubble.left.and.bubble.right": "chat-bubble-outline",
   "arrow.up.circle.fill": "arrow-circle-up",
   "trash.fill": "delete-outline",
+  "square.and.arrow.up": "ios-share",
+  ellipsis: "more-vert",
 } as IconMapping;
 
 /**

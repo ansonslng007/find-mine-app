@@ -7,11 +7,12 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useCreateItem } from "@/hooks/use-create-item";
+import { useUpdateItem } from "@/hooks/use-update-item";
 import { ApiError } from "@/lib/api/client";
-import type { ItemKind } from "@/lib/api/items";
+import type { Item, ItemKind } from "@/lib/api/items";
 import { analyzeItemImage } from "@/lib/api/items";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
-import { useFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
+import { useOptionalFabUploadSheet } from "@/providers/fab-upload-sheet-provider";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -75,12 +76,27 @@ function imageMimeToFileName(mime: string): string {
   return "upload.jpg";
 }
 
-export function LostItemForm() {
+function occurredAtIsoToDateInput(iso: string | null | undefined): string {
+  if (!iso?.trim()) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatDateInputValue(d);
+}
+
+export type LostItemFormProps =
+  | { mode?: "create" }
+  | { mode: "edit"; itemId: string; initialItem: Item };
+
+export function LostItemForm(props: LostItemFormProps = {}) {
+  const isEdit = props.mode === "edit";
   const router = useRouter();
   const createItemMutation = useCreateItem();
-  const { pendingDraft, consumeDraft } = useFabUploadSheet();
+  const updateItemMutation = useUpdateItem();
+  const { pendingDraft, consumeDraft } = useOptionalFabUploadSheet();
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [imageIsLocal, setImageIsLocal] = useState(false);
   const [imageMime, setImageMime] = useState("image/jpeg");
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("");
@@ -116,7 +132,45 @@ export function LostItemForm() {
 
 
   useEffect(() => {
-    if (!pendingDraft) {
+    if (!isEdit || props.mode !== "edit") {
+      return;
+    }
+    const item = props.initialItem;
+    setImageUri(item.imageUrl);
+    setExistingImageUrl(item.imageUrl);
+    setImageIsLocal(false);
+    setImageMime("image/jpeg");
+    setTitle(item.title);
+    setKind(item.kind);
+    setDescription(item.description?.trim() ?? "");
+    const cat = item.category?.trim() ?? "";
+    setCategory(SUBMIT_CATEGORY_IDS.has(cat) ? cat : "other");
+    setLocation(item.locationText?.trim() ?? "");
+    const lat = item.locationLatitude;
+    const lng = item.locationLongitude;
+    if (
+      lat != null &&
+      lng != null &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+    ) {
+      setPlaceGeometry({ location: { lat, lng } });
+    } else {
+      setPlaceGeometry(null);
+    }
+    const dateStr = occurredAtIsoToDateInput(item.occurredAt);
+    setTime(dateStr);
+    setPickedOccurredAt(
+      dateStr ? new Date(parseOccurredAtIso(dateStr) ?? Date.now()) : null,
+    );
+    setTimeInputError("");
+    setObjectHint(
+      cat ? t(`categories.${cat}`) : t("form.categoryHintDefault"),
+    );
+  }, [isEdit, props, t]);
+
+  useEffect(() => {
+    if (isEdit || !pendingDraft) {
       return;
     }
     const d = pendingDraft;
@@ -146,7 +200,19 @@ export function LostItemForm() {
     if (loading) {
       return;
     }
+    if (isEdit && existingImageUrl) {
+      if (imageIsLocal) {
+        setImageUri(existingImageUrl);
+        setImageIsLocal(false);
+        setImageMime("image/jpeg");
+      }
+      setSubmitMessage("");
+      setSubmitError("");
+      return;
+    }
     setImageUri(null);
+    setExistingImageUrl(null);
+    setImageIsLocal(false);
     setImageMime("image/jpeg");
     setCategory("");
     setDescription("");
@@ -159,6 +225,8 @@ export function LostItemForm() {
 
   const resetFormState = () => {
     setImageUri(null);
+    setExistingImageUrl(null);
+    setImageIsLocal(false);
     setImageMime("image/jpeg");
     setTitle("");
     setTime("");
@@ -282,6 +350,7 @@ export function LostItemForm() {
     const asset = result.assets[0];
     const uri = asset.uri;
     setImageUri(uri);
+    setImageIsLocal(true);
     setImageMime(asset.mimeType ?? "image/jpeg");
     await analyzePhotoFromUri(uri, asset.mimeType ?? "image/jpeg");
   };
@@ -306,6 +375,7 @@ export function LostItemForm() {
     const asset = result.assets[0];
     const uri = asset.uri;
     setImageUri(uri);
+    setImageIsLocal(true);
     setImageMime(asset.mimeType ?? "image/jpeg");
     await analyzePhotoFromUri(uri, asset.mimeType ?? "image/jpeg");
   };
@@ -356,7 +426,7 @@ export function LostItemForm() {
       return;
     }
 
-    const formData = {
+    const sharedFields = {
       kind,
       title: title.trim(),
       category: cat,
@@ -369,6 +439,49 @@ export function LostItemForm() {
           }
         : {}),
       occurredAt,
+    };
+
+    const onMutationError = (e: Error) => {
+      const msg =
+        e instanceof ApiError
+          ? `${e.code}：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setSubmitError(msg);
+    };
+
+    if (isEdit && props.mode === "edit") {
+      updateItemMutation.mutate(
+        {
+          itemId: props.itemId,
+          ...sharedFields,
+          ...(imageIsLocal && imageUri
+            ? {
+                image: {
+                  uri: imageUri,
+                  name: imageMimeToFileName(imageMime),
+                  type: imageMime || "image/jpeg",
+                },
+              }
+            : {}),
+        },
+        {
+          onSuccess: () => {
+            setSubmitMessage(t("edit.success"));
+            router.replace({
+              pathname: "/item/[id]",
+              params: { id: props.itemId },
+            });
+          },
+          onError: onMutationError,
+        },
+      );
+      return;
+    }
+
+    const formData = {
+      ...sharedFields,
       image: {
         uri: imageUri,
         name: imageMimeToFileName(imageMime),
@@ -389,17 +502,12 @@ export function LostItemForm() {
         resetFormState();
         router.replace(formData.kind === "found" ? "/(tabs)/found" : "/(tabs)");
       },
-      onError: (e) => {
-        const msg =
-          e instanceof ApiError
-            ? `${e.code}：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e);
-        setSubmitError(msg);
-      },
+      onError: onMutationError,
     });
   };
+
+  const submitPending =
+    createItemMutation.isPending || updateItemMutation.isPending;
 
   const handleLocationPickChange = (value: {
     label: string;
@@ -416,12 +524,36 @@ export function LostItemForm() {
   const locationLabel =
     kind === "lost" ? t("form.locationLost") : t("form.locationFound");
 
+  const screenTitle = isEdit ? t("edit.title") : t("form.screenTitle");
+  const screenSubtitle = isEdit
+    ? t("edit.subtitle")
+    : t("form.screenSubtitle");
+  const submitLabel = isEdit
+    ? t("edit.save")
+    : kind === "lost"
+      ? t("form.submitLost")
+      : t("form.submitFound");
+
   return (
     <PageLayoutWithHeader
-      screenTitle={t("form.screenTitle")}
-      screenSubtitle={t("form.screenSubtitle")}
+      screenTitle={screenTitle}
+      screenSubtitle={screenSubtitle}
       icon="shippingbox.fill"
     >
+      {isEdit ? (
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.backRow,
+            pressed ? { opacity: 0.75 } : null,
+          ]}
+        >
+          <IconSymbol name="chevron.left" size={22} color={c.brand} />
+          <ThemedText style={[styles.backLabel, { color: c.brand }]}>
+            {t("detail.back")}
+          </ThemedText>
+        </Pressable>
+      ) : null}
       {backendFillSnapshot != null ? (
         <View style={styles.formTopBar}>
           <Pressable
@@ -750,16 +882,16 @@ export function LostItemForm() {
         style={[
           styles.submitButton,
           { backgroundColor: c.brand },
-          createItemMutation.isPending && styles.submitButtonDisabled,
+          submitPending && styles.submitButtonDisabled,
         ]}
         onPress={handleSubmit}
-        disabled={createItemMutation.isPending}
+        disabled={submitPending}
       >
-        {createItemMutation.isPending ? (
+        {submitPending ? (
           <ActivityIndicator color={c.onBrand} />
         ) : (
           <Text style={[styles.submitButtonText, { color: c.onBrand }]}>
-            {kind === "lost" ? t("form.submitLost") : t("form.submitFound")}
+            {submitLabel}
           </Text>
         )}
       </TouchableOpacity>
@@ -793,6 +925,15 @@ function createLostItemFormStyles() {
     container: {
       flex: 1,
       paddingHorizontal: 16,
+    },
+    backRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 8,
+    },
+    backLabel: {
+      fontSize: 16,
+      marginLeft: 4,
     },
     formTopBar: {
       width: "100%",

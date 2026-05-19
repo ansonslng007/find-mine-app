@@ -5,7 +5,9 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
+import { ROUTE_PATH } from "@/constants/routePath";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { useDeleteItem } from "@/hooks/use-delete-item";
 import { useItem } from "@/hooks/use-items";
 import { ApiError } from "@/lib/api/client";
 import { createConversation } from "@/lib/api/chat";
@@ -16,7 +18,9 @@ import {
 } from "@/lib/item-platform";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
+import * as ExpoLinking from "expo-linking";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,6 +28,7 @@ import {
   Linking,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -38,6 +43,7 @@ export function ItemDetailScreen() {
   const { t, locale } = useI18n();
   const { data: authUser } = useAuthUser();
   const { data, isPending, isError, error, refetch } = useItem(id);
+  const deleteItemMutation = useDeleteItem();
   const [contactBusy, setContactBusy] = useState(false);
 
   const styles = useMemo(
@@ -47,34 +53,38 @@ export function ItemDetailScreen() {
           flex: 1,
           backgroundColor: c.pageBackground,
         },
-        topBar: {
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          backgroundColor: c.cardBackground,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: c.borderSubtle,
-          gap: 8,
-        },
-        closeRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-          flexShrink: 1,
-          minWidth: 0,
-        },
-        closeLabel: {
-          fontSize: 17,
-          fontWeight: "500",
-          color: c.brand,
+        heroWrap: {
+          position: "relative",
+          width: "100%",
         },
         hero: {
           width: "100%",
           aspectRatio: 1,
-          maxHeight: 420,
           backgroundColor: c.imagePlaceholder,
+        },
+        heroOverlay: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 12,
+          paddingBottom: 12,
+        },
+        heroOverlayRight: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+        },
+        heroIconBtn: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(0, 0, 0, 0.35)",
         },
         body: {
           paddingHorizontal: 20,
@@ -300,6 +310,68 @@ export function ItemDetailScreen() {
     }
   };
 
+  const handleEditPost = () => {
+    if (!item) {
+      return;
+    }
+    router.push({
+      pathname: ROUTE_PATH.ITEM_EDIT,
+      params: { id: item.id },
+    } as unknown as Href);
+  };
+
+  const handleDeletePost = () => {
+    if (!item) {
+      return;
+    }
+    Alert.alert(t("edit.deleteConfirmTitle"), t("edit.deleteConfirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("detail.deletePost"),
+        style: "destructive",
+        onPress: () => {
+          deleteItemMutation.mutate(item.id, {
+            onSuccess: () => {
+              router.replace(
+                item.kind === "found" ? "/(tabs)/found" : "/(tabs)",
+              );
+            },
+            onError: (e) => {
+              const msg =
+                e instanceof ApiError ? e.message : t("edit.deleteFailed");
+              Alert.alert(t("edit.deleteConfirmTitle"), msg);
+            },
+          });
+        },
+      },
+    ]);
+  };
+
+  const handleSharePost = async () => {
+    const url = ExpoLinking.createURL(`/item/${item.id}`);
+    try {
+      await Share.share({
+        title: item.title,
+        message: `${item.title}\n${url}`,
+        url,
+      });
+    } catch {
+      // User dismissed share sheet.
+    }
+  };
+
+  const handleMoreActions = () => {
+    Alert.alert(t("detail.moreActions"), undefined, [
+      { text: t("detail.editPost"), onPress: handleEditPost },
+      {
+        text: t("detail.deletePost"),
+        style: "destructive",
+        onPress: handleDeletePost,
+      },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
+  };
+
   const handleContactPoster = async () => {
     if (!poster) {
       return;
@@ -328,19 +400,7 @@ export function ItemDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 12) }]}>
-        <Pressable onPress={() => router.back()} style={styles.closeRow}>
-          <IconSymbol name="xmark" size={22} color={c.brand} />
-          <Text style={styles.closeLabel}>{t("detail.close")}</Text>
-        </Pressable>
-        <View
-          style={[styles.badge, !isLost && { backgroundColor: c.badgeFound }]}
-        >
-          <Text style={styles.badgeText}>
-            {isLost ? t("card.badgeLost") : t("card.badgeFound")}
-          </Text>
-        </View>
-      </View>
+      <StatusBar style="light" />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -349,12 +409,51 @@ export function ItemDetailScreen() {
           paddingBottom: insets.bottom + 24,
         }}
       >
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.hero}
-          contentFit="cover"
-          transition={200}
-        />
+        <View style={styles.heroWrap}>
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.hero}
+            contentFit="cover"
+            transition={200}
+          />
+          <View
+            style={[
+              styles.heroOverlay,
+              { paddingTop: Math.max(insets.top, 8) },
+            ]}
+          >
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.heroIconBtn}
+              hitSlop={8}
+            >
+              <IconSymbol name="chevron.left" size={22} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.heroOverlayRight}>
+              <Pressable
+                onPress={handleSharePost}
+                style={styles.heroIconBtn}
+                hitSlop={8}
+              >
+                <IconSymbol
+                  name="square.and.arrow.up"
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </Pressable>
+              {isOwnPoster ? (
+                <Pressable
+                  onPress={handleMoreActions}
+                  style={styles.heroIconBtn}
+                  hitSlop={8}
+                >
+                  <IconSymbol name="ellipsis" size={22} color="#FFFFFF" />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
         <View style={styles.body}>
           <View style={styles.titleRow}>
             <ThemedText
@@ -363,6 +462,13 @@ export function ItemDetailScreen() {
             >
               {item.title}
             </ThemedText>
+            <View
+              style={[styles.badge, !isLost && { backgroundColor: c.badgeFound }]}
+            >
+              <Text style={styles.badgeText}>
+                {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+              </Text>
+            </View>
             {platformTag ? (
               <View style={styles.badgePlatform}>
                 <Text style={styles.badgePlatformText}>{platformTag}</Text>
@@ -439,11 +545,6 @@ export function ItemDetailScreen() {
               </Text>
             )}
           </Pressable>
-        ) : null}
-        {isOwnPoster ? (
-          <ThemedText type="default" style={styles.contactFooterOwn}>
-            {t("detail.youArePoster")}
-          </ThemedText>
         ) : null}
         {!canMessagePoster &&
         !isOwnPoster &&

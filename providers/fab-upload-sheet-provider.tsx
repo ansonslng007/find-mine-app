@@ -33,6 +33,12 @@ type FabUploadContextValue = Readonly<{
 
 const FabUploadContext = createContext<FabUploadContextValue | null>(null);
 
+const FAB_UPLOAD_NOOP: FabUploadContextValue = {
+  openFabSheet: () => {},
+  pendingDraft: null,
+  consumeDraft: () => {},
+};
+
 export function useFabUploadSheet(): FabUploadContextValue {
   const ctx = useContext(FabUploadContext);
   if (!ctx) {
@@ -41,6 +47,12 @@ export function useFabUploadSheet(): FabUploadContextValue {
     );
   }
   return ctx;
+}
+
+/** Safe outside tabs; returns no-op handlers and no draft (e.g. item edit screen). */
+export function useOptionalFabUploadSheet(): FabUploadContextValue {
+  const ctx = useContext(FabUploadContext);
+  return ctx ?? FAB_UPLOAD_NOOP;
 }
 
 type BusyPhase = "idle" | "analyze";
