@@ -13,7 +13,7 @@ import {
   loadAuthUser,
   saveAuthUser,
 } from "@/lib/auth/session";
-import { getAuthToken, saveAuthToken } from "@/lib/auth/token-storage";
+import { getAuthToken } from "@/lib/auth/token-storage";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/providers/i18n-provider";
@@ -30,6 +30,8 @@ type ProfileCardProps = Readonly<{
   subtitle: string;
   left: React.ReactNode;
   onPress?: () => void;
+  /** Right chevron when the card opens another screen. */
+  showsNavigationChevron?: boolean;
   titleColor?: string;
 }>;
 
@@ -38,6 +40,7 @@ function ProfileCard({
   subtitle,
   left,
   onPress,
+  showsNavigationChevron = false,
   titleColor,
 }: ProfileCardProps) {
   const c = useAppColors();
@@ -61,9 +64,14 @@ function ProfileCard({
         textCol: {
           flex: 1,
           marginLeft: 14,
+          marginRight: 8,
+          minWidth: 0,
         },
         subtitle: {
           marginTop: 4,
+        },
+        chevron: {
+          marginLeft: "auto",
         },
       }),
     [c],
@@ -83,6 +91,14 @@ function ProfileCard({
           {subtitle}
         </ThemedText>
       </View>
+      {showsNavigationChevron ? (
+        <IconSymbol
+          name="chevron.right"
+          size={20}
+          color={c.textMuted}
+          style={styles.chevron}
+        />
+      ) : null}
     </View>
   );
 
@@ -389,6 +405,7 @@ export default function ProfileScreen() {
         title={t("profile.guestTitle")}
         subtitle={t("profile.guestSubtitle")}
         onPress={() => router.push(ROUTE_PATH.SIGN_IN)}
+        showsNavigationChevron
         left={
           <View style={styles.largeUserIcon}>
             <IconSymbol name="person.fill" size={28} color={c.brand} />
@@ -417,6 +434,7 @@ export default function ProfileScreen() {
             title={t("profile.myItemsTitle")}
             subtitle={t("profile.myItemsSubtitle")}
             onPress={() => router.push(ROUTE_PATH.PROFILE_MY_ITEMS)}
+            showsNavigationChevron
             left={
               <View style={styles.smallIconCircle}>
                 <IconSymbol
@@ -434,6 +452,7 @@ export default function ProfileScreen() {
         title={t("profile.settingsTitle")}
         subtitle={t("profile.settingsSubtitle")}
         onPress={() => router.push(ROUTE_PATH.SETTINGS)}
+        showsNavigationChevron
         left={
           <View style={styles.smallIconCircle}>
             <IconSymbol name="gearshape.fill" size={24} color={c.textPrimary} />
