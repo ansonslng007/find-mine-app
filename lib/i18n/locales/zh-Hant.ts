@@ -309,6 +309,7 @@ export const zhHant = {
     mapPickTitle: "在地圖上選擇位置",
     mapPickConfirm: "確認此位置",
     mapPickAddressLoading: "正在解析地址…",
+    mapPickAddressAnalyzing: "地址分析中",
     mapPickReverseFail: "暫時無法取得地址，仍可送出座標。",
     mapPickDragHint: "拖曳地圖，讓箭頭對準實際位置；右上角可跳到目前定位。",
     mapPickPinHint: "請拖曳地圖移動，對準下方箭頭後即會顯示地址。",
