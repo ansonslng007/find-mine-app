@@ -9,7 +9,8 @@ import { ROUTE_PATH } from "@/constants/routePath";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { CHAT_UNREAD_COUNT_QUERY_KEY } from "@/hooks/use-chat-unread-count";
-import { getSocketBaseUrl } from "@/lib/chat/socket-base-url";
+import { setActiveConversationId } from "@/lib/chat/active-conversation";
+import type { MessageNewPayload } from "@/lib/chat/message-new-payload";
 import {
   deleteConversation,
   getConversation,
@@ -17,14 +18,13 @@ import {
   markConversationRead,
   type ChatMessage,
 } from "@/lib/api/chat";
-import { getAuthToken } from "@/lib/auth/token-storage";
 import { useI18n } from "@/providers/i18n-provider";
+import { useChatSocket } from "@/providers/chat-socket-provider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { io, type Socket } from "socket.io-client";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,14 +38,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type MessageNewPayload = {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  body: string;
-  createdAt: string;
-};
-
 export default function ChatConversationScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const router = useRouter();
@@ -54,7 +46,8 @@ export default function ChatConversationScreen() {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { data: user } = useAuthUser();
-  const socketRef = useRef<Socket | null>(null);
+  const { socket, joinConversation, leaveConversation, subscribeMessageNew } =
+    useChatSocket();
   const [draft, setDraft] = useState("");
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
@@ -78,6 +71,7 @@ export default function ChatConversationScreen() {
       if (typeof conversationId !== "string" || conversationId.length === 0) {
         return;
       }
+      setActiveConversationId(conversationId);
       void qc.invalidateQueries({ queryKey: ["conversation", conversationId] });
       let cancelled = false;
       void (async () => {
@@ -93,66 +87,40 @@ export default function ChatConversationScreen() {
       })();
       return () => {
         cancelled = true;
+        setActiveConversationId(null);
       };
     }, [conversationId, qc]),
   );
 
   useEffect(() => {
-    if (!conversationId || !user) {
+    if (typeof conversationId !== "string" || conversationId.length === 0) {
       return;
     }
-    let cancelled = false;
     const sid = conversationId;
 
-    (async () => {
-      const token = await getAuthToken();
-      if (!token || cancelled) {
+    void joinConversation(sid).catch(() => {
+      Alert.alert(t("chat.title"), t("chat.joinFailed"));
+    });
+
+    return () => {
+      leaveConversation(sid);
+    };
+  }, [conversationId, joinConversation, leaveConversation, t]);
+
+  useEffect(() => {
+    if (typeof conversationId !== "string" || conversationId.length === 0) {
+      return;
+    }
+    const sid = conversationId;
+
+    return subscribeMessageNew((payload: MessageNewPayload) => {
+      if (payload.conversationId !== sid) {
         return;
       }
-      const base = getSocketBaseUrl();
-      if (!base) {
-        return;
-      }
-      const socket = io(base, {
-        auth: { token },
-        transports: ["websocket"],
-      });
-      socketRef.current = socket;
-
-      socket.on("connect_error", () => {
-        Alert.alert(t("chat.title"), t("chat.socketConnectFailed"));
-      });
-
-      socket.on("connect", () => {
-        socket.emit("join", sid, (err?: string) => {
-          if (err) {
-            Alert.alert(t("chat.title"), t("chat.joinFailed"));
-          }
-        });
-      });
-
-      socket.on("message:new", (payload: MessageNewPayload) => {
-        if (payload.conversationId !== sid) {
-          return;
-        }
-        qc.setQueryData(
-          ["messages", sid],
-          (old: { messages: ChatMessage[] } | undefined) => {
-            if (!old) {
-              return {
-                messages: [
-                  {
-                    id: payload.id,
-                    senderId: payload.senderId,
-                    body: payload.body,
-                    createdAt: payload.createdAt,
-                  },
-                ],
-              };
-            }
-            if (old.messages.some((m) => m.id === payload.id)) {
-              return old;
-            }
+      qc.setQueryData(
+        ["messages", sid],
+        (old: { messages: ChatMessage[] } | undefined) => {
+          if (!old) {
             return {
               messages: [
                 {
@@ -161,39 +129,43 @@ export default function ChatConversationScreen() {
                   body: payload.body,
                   createdAt: payload.createdAt,
                 },
-                ...old.messages,
               ],
             };
-          },
+          }
+          if (old.messages.some((m) => m.id === payload.id)) {
+            return old;
+          }
+          return {
+            messages: [
+              {
+                id: payload.id,
+                senderId: payload.senderId,
+                body: payload.body,
+                createdAt: payload.createdAt,
+              },
+              ...old.messages,
+            ],
+          };
+        },
+      );
+      if (payload.senderId !== user?.id) {
+        void markConversationRead(sid).then(() =>
+          qc.invalidateQueries({ queryKey: CHAT_UNREAD_COUNT_QUERY_KEY }),
         );
-        void qc.invalidateQueries({ queryKey: ["conversations"] });
-        void qc.invalidateQueries({ queryKey: CHAT_UNREAD_COUNT_QUERY_KEY });
-        if (payload.senderId !== user?.id) {
-          void markConversationRead(sid).then(() =>
-            qc.invalidateQueries({ queryKey: CHAT_UNREAD_COUNT_QUERY_KEY }),
-          );
-        }
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-      socketRef.current?.disconnect();
-      socketRef.current = null;
-    };
-  }, [conversationId, user, qc, t]);
+      }
+    });
+  }, [conversationId, qc, subscribeMessageNew, user?.id]);
 
   const sendMessage = useCallback(() => {
     const text = draft.trim();
     if (!text || !conversationId) {
       return;
     }
-    const sock = socketRef.current;
-    if (!sock?.connected) {
+    if (!socket?.connected) {
       Alert.alert(t("chat.title"), t("chat.notConnected"));
       return;
     }
-    sock.emit(
+    socket.emit(
       "message:send",
       { conversationId, body: text },
       (err?: string) => {
@@ -204,7 +176,7 @@ export default function ChatConversationScreen() {
         setDraft("");
       },
     );
-  }, [conversationId, draft, t]);
+  }, [conversationId, draft, socket, t]);
 
   const confirmDeleteConversation = useCallback(() => {
     if (typeof conversationId !== "string" || conversationId.length === 0) {

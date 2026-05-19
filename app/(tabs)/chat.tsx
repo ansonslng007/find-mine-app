@@ -12,6 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import type { AppLocale } from "@/lib/i18n/types";
 import { useI18n } from "@/providers/i18n-provider";
+import { setChatTabFocused } from "@/lib/chat/chat-ui-focus";
 import { CHAT_UNREAD_COUNT_QUERY_KEY } from "@/hooks/use-chat-unread-count";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "@react-navigation/native";
@@ -340,10 +341,14 @@ export default function ChatTabScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setChatTabFocused(true);
       if (user != null) {
         void qc.invalidateQueries({ queryKey: CHAT_UNREAD_COUNT_QUERY_KEY });
         void qc.invalidateQueries({ queryKey: ["conversations"] });
       }
+      return () => {
+        setChatTabFocused(false);
+      };
     }, [qc, user]),
   );
 
