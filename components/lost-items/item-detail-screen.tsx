@@ -4,6 +4,10 @@ import {
   hasDisplayableReward,
   inferItemCategoryId,
 } from "@/components/lost-items/format";
+import {
+  BottomActionSheet,
+  type BottomActionSheetItem,
+} from "@/components/modal/bottom-action-sheet";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
@@ -48,6 +52,7 @@ export function ItemDetailScreen() {
   const { data, isPending, isError, error, refetch } = useItem(id);
   const deleteItemMutation = useDeleteItem();
   const [contactBusy, setContactBusy] = useState(false);
+  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -377,17 +382,19 @@ export function ItemDetailScreen() {
     }
   };
 
-  const handleMoreActions = () => {
-    Alert.alert(t("detail.moreActions"), undefined, [
-      { text: t("detail.editPost"), onPress: handleEditPost },
-      {
-        text: t("detail.deletePost"),
-        style: "destructive",
-        onPress: handleDeletePost,
-      },
-      { text: t("common.cancel"), style: "cancel" },
-    ]);
-  };
+  const moreMenuActions: BottomActionSheetItem[] = [
+    {
+      key: "edit",
+      label: t("detail.editPost"),
+      onPress: handleEditPost,
+    },
+    {
+      key: "delete",
+      label: t("detail.deletePost"),
+      destructive: true,
+      onPress: handleDeletePost,
+    },
+  ];
 
   const handleContactPoster = async () => {
     if (!poster) {
@@ -460,7 +467,7 @@ export function ItemDetailScreen() {
               </Pressable>
               {isOwnPoster ? (
                 <Pressable
-                  onPress={handleMoreActions}
+                  onPress={() => setMoreMenuVisible(true)}
                   style={styles.heroIconBtn}
                   hitSlop={8}
                 >
@@ -586,6 +593,12 @@ export function ItemDetailScreen() {
           </ThemedText>
         ) : null}
       </View>
+
+      <BottomActionSheet
+        visible={moreMenuVisible}
+        onClose={() => setMoreMenuVisible(false)}
+        actions={moreMenuActions}
+      />
     </View>
   );
 }

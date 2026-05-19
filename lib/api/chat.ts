@@ -10,6 +10,7 @@ export type ChatPeer = {
 export type ChatItemSummary = {
   id: string;
   title: string;
+  description?: string | null;
   kind: ItemKind;
   imageUrl: string;
 };
@@ -19,6 +20,7 @@ export type ConversationListEntry = {
   item: ChatItemSummary;
   peer: ChatPeer;
   lastMessage: { body: string; at: string | null } | null;
+  unreadCount: number;
 };
 
 export type ListConversationsResponse = {
@@ -111,4 +113,8 @@ export async function markConversationRead(
   conversationId: string,
 ): Promise<void> {
   await apiClient.post(`/api/v1/conversations/${conversationId}/read`);
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await apiClient.delete(`/api/v1/conversations/${conversationId}`);
 }
