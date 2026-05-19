@@ -1,15 +1,14 @@
 import { passesCategoryChip } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
 import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
+import { SubpageScreenLayout } from "@/components/layout/subpage-screen-layout";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { type LostItemCategoryId } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useItemsList } from "@/hooks/use-items";
 import type { Item, ItemKind } from "@/lib/api/items";
 import { useI18n } from "@/providers/i18n-provider";
-import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,10 +45,7 @@ function MyItemsTabBar({
 }: MyItemsTabBarProps) {
   return (
     <View style={styles.tabRow}>
-      <Pressable
-        style={styles.tabBtn}
-        onPress={() => onTabChange("lost")}
-      >
+      <Pressable style={styles.tabBtn} onPress={() => onTabChange("lost")}>
         <ThemedText
           type="body"
           style={[
@@ -61,10 +57,7 @@ function MyItemsTabBar({
         </ThemedText>
         {activeTab === "lost" ? <View style={styles.tabIndicator} /> : null}
       </Pressable>
-      <Pressable
-        style={styles.tabBtn}
-        onPress={() => onTabChange("found")}
-      >
+      <Pressable style={styles.tabBtn} onPress={() => onTabChange("found")}>
         <ThemedText
           type="body"
           style={[
@@ -128,10 +121,9 @@ function MyItemsListEmpty({
       {screenT("empty")}
     </ThemedText>
   );
-};
+}
 
 export function MyItemsScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const c = useAppColors();
   const { t } = useI18n();
@@ -142,35 +134,9 @@ export function MyItemsScreen() {
   const { data, isPending, isError, error, refetch, isRefetching } =
     useItemsList({ kind: activeTab, mine: true });
 
-  const styles = useMemo(
+  const tabStyles = useMemo(
     () =>
       StyleSheet.create({
-        root: {
-          flex: 1,
-          backgroundColor: c.pageBackground,
-        },
-        header: {
-          paddingHorizontal: 16,
-          paddingBottom: 8,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: c.borderSubtle,
-          backgroundColor: c.pageBackground,
-        },
-        topRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 12,
-        },
-        backBtn: {
-          padding: 4,
-          marginLeft: -4,
-        },
-        title: {
-          flex: 1,
-          fontSize: 18,
-          fontWeight: "700",
-        },
         tabRow: {
           flexDirection: "row",
           width: "100%",
@@ -197,11 +163,13 @@ export function MyItemsScreen() {
           borderRadius: 1,
           backgroundColor: c.brand,
         },
-        listArea: {
-          flex: 1,
-          paddingHorizontal: 16,
-          paddingTop: 12,
-        },
+      }),
+    [c],
+  );
+
+  const listStyles = useMemo(
+    () =>
+      StyleSheet.create({
         listContent: {
           gap: 12,
         },
@@ -214,8 +182,11 @@ export function MyItemsScreen() {
           paddingVertical: 48,
           gap: 12,
         },
+        listBody: {
+          flex: 1,
+        },
       }),
-    [c],
+    [],
   );
 
   const filteredItems = useMemo(() => {
@@ -237,53 +208,37 @@ export function MyItemsScreen() {
       error={error}
       onRetry={() => refetch()}
       brandColor={c.brand}
-      centerStyle={styles.centerBlock}
+      centerStyle={listStyles.centerBlock}
       screenT={screenT}
       t={t}
     />
   );
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
-        <View style={styles.topRow}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.backBtn}
-            hitSlop={12}
-          >
-            <IconSymbol name="chevron.left" size={24} color={c.textPrimary} />
-          </Pressable>
-          <ThemedText type="screenTitle" style={styles.title}>
-            {screenT("title")}
-          </ThemedText>
-        </View>
-
+    <SubpageScreenLayout
+      title={screenT("title")}
+      headerFooter={
         <MyItemsTabBar
           activeTab={activeTab}
           onTabChange={setActiveTab}
           tabLostLabel={screenT("tabLost")}
           tabFoundLabel={screenT("tabFound")}
-          styles={{
-            tabRow: styles.tabRow,
-            tabBtn: styles.tabBtn,
-            tabLabel: styles.tabLabel,
-            tabLabelActive: styles.tabLabelActive,
-            tabIndicator: styles.tabIndicator,
-          }}
+          styles={tabStyles}
         />
-      </View>
-
-      <View style={styles.listArea}>
+      }
+      contentContainerStyle={{ paddingHorizontal: 0, paddingTop: 0 }}
+    >
+      <View style={[listStyles.listBody, { paddingHorizontal: 16, paddingTop: 12 }]}>
         <CategoryChipRow category={category} onCategoryChange={setCategory} />
         <FlatList
           data={isPending || isError ? [] : filteredItems}
           keyExtractor={(it) => it.id}
           renderItem={renderItem}
+          style={{ flex: 1 }}
           contentContainerStyle={[
-            styles.listContent,
+            listStyles.listContent,
             { paddingBottom: insets.bottom + 24 },
-            listShouldGrow && styles.listEmptyGrow,
+            listShouldGrow && listStyles.listEmptyGrow,
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={listEmpty}
@@ -296,6 +251,6 @@ export function MyItemsScreen() {
           }
         />
       </View>
-    </View>
+    </SubpageScreenLayout>
   );
 }
