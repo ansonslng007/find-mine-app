@@ -7,7 +7,12 @@ import { Calendar, type DateData } from "react-native-calendars";
 
 type PeriodMarkedDates = Record<
   string,
-  { color: string; startingDay?: boolean; endingDay?: boolean }
+  {
+    color: string;
+    textColor: string;
+    startingDay?: boolean;
+    endingDay?: boolean;
+  }
 >;
 
 type DraftRange = Readonly<{
@@ -50,14 +55,21 @@ function parseLocalYmd(ymd: string): Date {
 function buildPeriodMarkedDates(
   startYmd: string | null,
   endYmd: string | null,
-  color: string,
+  periodColor: string,
+  periodTextColor: string,
 ): PeriodMarkedDates {
   const out: PeriodMarkedDates = {};
   if (startYmd == null) {
     return out;
   }
+  const dayMark = (startingDay: boolean, endingDay: boolean) => ({
+    color: periodColor,
+    textColor: periodTextColor,
+    startingDay,
+    endingDay,
+  });
   if (endYmd == null || startYmd === endYmd) {
-    out[startYmd] = { startingDay: true, endingDay: true, color };
+    out[startYmd] = dayMark(true, true);
     return out;
   }
   const lo = startYmd < endYmd ? startYmd : endYmd;
@@ -66,11 +78,7 @@ function buildPeriodMarkedDates(
   const endD = parseLocalYmd(hi);
   while (cur.getTime() <= endD.getTime()) {
     const ds = toLocalYmd(cur);
-    out[ds] = {
-      color,
-      startingDay: ds === lo,
-      endingDay: ds === hi,
-    };
+    out[ds] = dayMark(ds === lo, ds === hi);
     cur.setDate(cur.getDate() + 1);
   }
   return out;
@@ -127,8 +135,9 @@ export function DateRangePickerModal({
   }, [visible, occurredFrom, occurredTo, todayYmd]);
 
   const markedDates = useMemo(
-    () => buildPeriodMarkedDates(draft.start, draft.end, c.brand),
-    [draft.start, draft.end, c.brand],
+    () =>
+      buildPeriodMarkedDates(draft.start, draft.end, c.brandSoft, c.brand),
+    [draft.start, draft.end, c.brandSoft, c.brand],
   );
 
   const calendarTheme = useMemo(
