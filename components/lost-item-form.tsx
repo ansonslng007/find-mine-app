@@ -83,6 +83,34 @@ function occurredAtIsoToDateInput(iso: string | null | undefined): string {
   return formatDateInputValue(d);
 }
 
+function formatRewardForInput(amount: number | null | undefined): string {
+  if (amount == null || amount === 0) {
+    return "0";
+  }
+  return String(amount);
+}
+
+function sanitizeRewardInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) {
+    return cleaned;
+  }
+  return `${cleaned.slice(0, dot)}.${cleaned.slice(dot + 1).replace(/\./g, "")}`;
+}
+
+function parseRewardInput(raw: string): number {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return 0;
+  }
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < 0) {
+    return 0;
+  }
+  return n;
+}
+
 export type LostItemFormProps =
   | { mode?: "create" }
   | { mode: "edit"; itemId: string; initialItem: Item };
@@ -107,6 +135,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
   const [category, setCategory] = useState("");
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [kind, setKind] = useState<ItemKind>("lost");
+  const [rewardInput, setRewardInput] = useState("0");
   const [description, setDescription] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
@@ -142,6 +171,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setImageMime("image/jpeg");
     setTitle(item.title);
     setKind(item.kind);
+    setRewardInput(formatRewardForInput(item.rewardAmount));
     setDescription(item.description?.trim() ?? "");
     const cat = item.category?.trim() ?? "";
     setCategory(SUBMIT_CATEGORY_IDS.has(cat) ? cat : "other");
@@ -236,6 +266,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setLocation("");
     setCategory("");
     setKind("lost");
+    setRewardInput("0");
     setDescription("");
     setSubmitMessage("");
     setSubmitError("");
@@ -439,6 +470,9 @@ export function LostItemForm(props: LostItemFormProps = {}) {
           }
         : {}),
       occurredAt,
+      ...(kind === "lost"
+        ? { rewardAmount: parseRewardInput(rewardInput) }
+        : {}),
     };
 
     const onMutationError = (e: Error) => {
@@ -696,6 +730,39 @@ export function LostItemForm(props: LostItemFormProps = {}) {
           lng={placeGeometry?.location.lng}
         />
       </View>
+
+      {kind === "lost" ? (
+        <View style={styles.formGroup}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.labelText, { color: c.textPrimary }]}>
+              {t("form.rewardLabel")}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.inputShell,
+              {
+                backgroundColor: c.chipBackground,
+                borderColor: c.borderSubtle,
+              },
+            ]}
+          >
+            <Text style={[styles.rewardPrefix, { color: c.textMuted }]}>
+              {t("form.rewardPrefix")}
+            </Text>
+            <TextInput
+              style={[styles.inputBare, { color: c.textPrimary }]}
+              placeholder={t("form.rewardPlaceholder")}
+              placeholderTextColor={c.placeholder}
+              value={rewardInput}
+              onChangeText={(text) =>
+                setRewardInput(sanitizeRewardInput(text))
+              }
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.formGroup}>
         <View style={styles.labelRow}>
@@ -1005,6 +1072,12 @@ function createLostItemFormStyles() {
       paddingVertical: 12,
       paddingHorizontal: 12,
       fontSize: 15,
+    },
+    rewardPrefix: {
+      fontSize: 15,
+      fontWeight: "600",
+      paddingLeft: 12,
+      paddingRight: 4,
     },
     textArea: {
       minHeight: 120,
