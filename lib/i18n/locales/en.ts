@@ -356,6 +356,7 @@ export const en = {
     loadFailed: "Could not load conversations.",
     noMessagesYet: "No messages yet.",
     anonymousMember: "Member",
+    lastSeenOnline: "Last online %{time}",
     missingConversation: "Missing conversation.",
     openItemDetail: "View item details",
     inputPlaceholder: "Message…",

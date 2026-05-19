@@ -340,6 +340,7 @@ export const zhHant = {
     loadFailed: "無法載入對話。",
     noMessagesYet: "尚無訊息。",
     anonymousMember: "會員",
+    lastSeenOnline: "%{time}上線",
     missingConversation: "缺少對話編號。",
     openItemDetail: "查看物品詳情",
     inputPlaceholder: "輸入訊息…",
