@@ -304,10 +304,13 @@ export const en = {
     timeFound: "Time found",
     locationLost: "Where it was lost",
     locationFound: "Where it was found",
-    screenTitle: "Create lost / found report",
+    screenTitle: "Create my post",
     screenSubtitle: "Let’s find what was lost",
     segmentLost: "I lost an item",
     segmentFound: "I found an item",
+    rewardLabel: "Reward (if any)",
+    rewardPlaceholder: "0",
+    rewardPrefix: "HK$",
     titlePlaceholder: "e.g. Black backpack",
     timePlaceholder: "e.g. 2026-04-30",
     timeInvalidFormat: "Date format must be eg. 2026-05-06.",
@@ -319,7 +322,8 @@ export const en = {
     mapPickTitle: "Pick location on map",
     mapPickConfirm: "Confirm this location",
     mapPickAddressLoading: "Resolving address…",
-    mapPickReverseFail: "Could not resolve address; coordinates can still be saved.",
+    mapPickReverseFail:
+      "Could not resolve address; coordinates can still be saved.",
     mapPickDragHint:
       "Drag the map so the pin points at the spot. Top-right jumps to your current location.",
     mapPickPinHint:
@@ -384,6 +388,7 @@ export const en = {
     retry: "Retry",
     close: "Close",
     description: "Description",
+    reward: "Reward",
     locationSection: "Location",
     contactPoster: "Message poster",
     openSourcePost: "View group post",

@@ -95,6 +95,30 @@ export function inferItemCategoryId(item: Item): ItemCategoryId {
   return "other";
 }
 
+/** Reward tag on list cards (yellow pill, like platform source tags). */
+export const ITEM_REWARD_TAG_BG = "#FACC15";
+export const ITEM_REWARD_TAG_TEXT_COLOR = "#713F12";
+
+export function hasDisplayableReward(item: Item): boolean {
+  const amount = item.rewardAmount ?? 0;
+  return item.kind === "lost" && Number.isFinite(amount) && amount > 0;
+}
+
+export function formatItemRewardAmount(
+  amount: number,
+  currencyPrefix: string,
+  locale: AppLocale = "zh-Hant",
+): string {
+  const formatted = new Intl.NumberFormat(
+    locale === "zh-Hant" ? "zh-HK" : "en-US",
+    {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    },
+  ).format(amount);
+  return `${currencyPrefix}${formatted}`;
+}
+
 export function passesCategoryChip(
   item: Item,
   category: LostItemCategoryId,

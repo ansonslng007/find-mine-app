@@ -1,5 +1,7 @@
 import {
+  formatItemRewardAmount,
   formatRelativeTime,
+  hasDisplayableReward,
   inferItemCategoryId,
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
@@ -279,6 +281,15 @@ export function ItemDetailScreen() {
   const poster = item.postedBy ?? null;
   const sourcePostUrl = item.sourcePostUrl?.trim() || null;
   const platformTag = formatItemPlatformTag(item, t);
+  const showReward = hasDisplayableReward(item);
+  const rewardAmountFormatted =
+    showReward && item.rewardAmount != null
+      ? formatItemRewardAmount(
+          item.rewardAmount,
+          t("form.rewardPrefix"),
+          locale,
+        )
+      : null;
   const isFbGroupImport = isFacebookImport(item);
   const isOwnPoster =
     !isFbGroupImport &&
@@ -497,6 +508,17 @@ export function ItemDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {rewardAmountFormatted ? (
+            <>
+              <ThemedText type="screenTitle" style={styles.sectionTitle}>
+                {t("detail.reward")}
+              </ThemedText>
+              <ThemedText type="body" style={styles.sectionBody}>
+                {rewardAmountFormatted}
+              </ThemedText>
+            </>
+          ) : null}
 
           <ThemedText type="screenTitle" style={styles.sectionTitle}>
             {t("detail.description")}
