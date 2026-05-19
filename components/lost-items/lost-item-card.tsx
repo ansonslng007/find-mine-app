@@ -1,6 +1,9 @@
 import {
   ONE_HOUR_MS,
   formatRelativeTime,
+  hasDisplayableReward,
+  ITEM_REWARD_TAG_BG,
+  ITEM_REWARD_TAG_TEXT_COLOR,
   truncate,
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
@@ -70,6 +73,14 @@ export function LostItemCard({ item }: Props) {
           fontSize: 11,
           fontWeight: "600",
         },
+        badgeReward: {
+          backgroundColor: ITEM_REWARD_TAG_BG,
+        },
+        badgeRewardText: {
+          color: ITEM_REWARD_TAG_TEXT_COLOR,
+          fontSize: 11,
+          fontWeight: "600",
+        },
         metaRow: {
           flexDirection: "row",
           alignItems: "center",
@@ -101,6 +112,7 @@ export function LostItemCard({ item }: Props) {
   const desc = item.description ?? "";
   const loc = item.locationText ?? t("common.unknownLocation");
   const platformTag = formatItemPlatformTag(item, t);
+  const showReward = hasDisplayableReward(item);
   const showTime =
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
 
@@ -122,6 +134,11 @@ export function LostItemCard({ item }: Props) {
             <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
               {item.title}
             </ThemedText>
+            {showReward ? (
+              <View style={[styles.badge, styles.badgeReward]}>
+                <Text style={styles.badgeRewardText}>{t("detail.reward")}</Text>
+              </View>
+            ) : null}
             {platformTag ? (
               <View style={[styles.badge, styles.badgePlatform]}>
                 <Text style={styles.badgePlatformText}>{platformTag}</Text>
