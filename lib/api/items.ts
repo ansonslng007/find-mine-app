@@ -73,6 +73,8 @@ export type UpdateItemResponse = {
 
 export type ListItemsParams = {
   kind?: ItemKind;
+  /** When true, only items posted by the signed-in user. */
+  mine?: boolean;
   limit?: number;
   offset?: number;
   /** ISO 8601: occurred_at >= this. */
@@ -96,6 +98,7 @@ export async function listItems(
   const { data } = await apiClient.get<ListItemsResponse>("/api/v1/items", {
     params: {
       kind: params?.kind,
+      mine: params?.mine === true ? "true" : undefined,
       limit: params?.limit,
       offset: params?.offset,
       occurredAfter: params?.occurredAfter,

@@ -7,4 +7,5 @@ export enum ROUTE_PATH {
   SIGN_IN = "/sign-in",
   SIGN_UP = "/sign-up",
   PROFILE = "/profile",
+  PROFILE_MY_ITEMS = "/profile/my-items",
 }

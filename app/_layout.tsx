@@ -54,6 +54,14 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="profile/my-items"
+                options={{
+                  headerShown: false,
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
+              />
+              <Stack.Screen
                 name="settings"
                 options={{
                   headerShown: false,
