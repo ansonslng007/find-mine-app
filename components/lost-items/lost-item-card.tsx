@@ -62,17 +62,6 @@ export function LostItemCard({ item }: Props) {
           paddingVertical: 3,
           borderRadius: 999,
         },
-        badgeLost: {
-          backgroundColor: c.badgeLost,
-        },
-        badgeFound: {
-          backgroundColor: c.badgeFound,
-        },
-        badgeText: {
-          color: c.onBrand,
-          fontSize: 11,
-          fontWeight: "700",
-        },
         badgePlatform: {
           backgroundColor: ITEM_PLATFORM_TAG_BG,
         },
@@ -111,7 +100,6 @@ export function LostItemCard({ item }: Props) {
 
   const desc = item.description ?? "";
   const loc = item.locationText ?? t("common.unknownLocation");
-  const isLost = item.kind === "lost";
   const platformTag = formatItemPlatformTag(item, t);
   const showTime =
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
@@ -134,23 +122,11 @@ export function LostItemCard({ item }: Props) {
             <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
               {item.title}
             </ThemedText>
-            <View style={{ flexDirection: "row", gap: 6, flexShrink: 0 }}>
-              {platformTag ? (
-                <View style={[styles.badge, styles.badgePlatform]}>
-                  <Text style={styles.badgePlatformText}>{platformTag}</Text>
-                </View>
-              ) : null}
-              <View
-                style={[
-                  styles.badge,
-                  isLost ? styles.badgeLost : styles.badgeFound,
-                ]}
-              >
-                <Text style={styles.badgeText}>
-                  {isLost ? t("card.badgeLost") : t("card.badgeFound")}
-                </Text>
+            {platformTag ? (
+              <View style={[styles.badge, styles.badgePlatform]}>
+                <Text style={styles.badgePlatformText}>{platformTag}</Text>
               </View>
-            </View>
+            ) : null}
           </View>
           <ThemedText
             type="bodyMuted"
