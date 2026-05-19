@@ -10,6 +10,7 @@ export type AppHeaderProps = Readonly<{
   screenTitle: string;
   screenSubtitle: string;
   icon: ComponentProps<typeof IconSymbol>["name"];
+  iconBackgroundColor?: string;
   headerRight?: React.ReactNode;
 }>;
 
@@ -17,9 +18,11 @@ export function AppHeader({
   screenTitle,
   screenSubtitle,
   icon,
+  iconBackgroundColor,
   headerRight,
 }: AppHeaderProps) {
   const c = useAppColors();
+  const iconWrapBg = iconBackgroundColor ?? c.brand;
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -39,7 +42,7 @@ export function AppHeader({
           width: 48,
           height: 48,
           borderRadius: 24,
-          backgroundColor: c.brand,
+          backgroundColor: iconWrapBg,
           alignItems: "center",
           justifyContent: "center",
           marginRight: 12,
@@ -48,7 +51,7 @@ export function AppHeader({
           flex: 1,
         },
       }),
-    [c],
+    [c, iconWrapBg],
   );
   const insets = useSafeAreaInsets();
 
