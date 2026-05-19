@@ -1,19 +1,12 @@
-import { PageLayoutWithHeader } from "@/components/layout/page-layout-with-header";
+import { SubpageScreenLayout } from "@/components/layout/subpage-screen-layout";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
+import type { AppLocale } from "@/lib/i18n/types";
 import { useColorSchemePreference } from "@/providers/color-scheme-preference-provider";
 import { useI18n } from "@/providers/i18n-provider";
-import type { AppLocale } from "@/lib/i18n/types";
-import { useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 function languagePreferenceLabel(
   pref: AppLocale,
@@ -26,7 +19,6 @@ function languagePreferenceLabel(
 }
 
 export default function SettingsScreen() {
-  const router = useRouter();
   const c = useAppColors();
   const { t, preference, setPreference: setLanguagePreference } = useI18n();
   const { effectiveScheme, setPreference: setThemePreference } =
@@ -51,18 +43,8 @@ export default function SettingsScreen() {
   const styles = useMemo(
     () =>
       StyleSheet.create({
-        backRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: 8,
-        },
-        backLabel: {
-          fontSize: 16,
-          fontWeight: "600",
-          color: c.brand,
-        },
         sectionLabel: {
-          marginTop: 12,
+          marginTop: 4,
           marginBottom: 8,
           marginLeft: 4,
           letterSpacing: 0.8,
@@ -116,21 +98,7 @@ export default function SettingsScreen() {
   );
 
   return (
-    <PageLayoutWithHeader
-      screenTitle={t("settings.title")}
-      screenSubtitle={t("settings.subtitle")}
-      icon="shippingbox.fill"
-    >
-      <Pressable
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backRow, pressed && { opacity: 0.75 }]}
-      >
-        <IconSymbol name="chevron.left" size={22} color={c.brand} />
-        <ThemedText style={[styles.backLabel, { marginLeft: 4 }]}>
-          {t("settings.back")}
-        </ThemedText>
-      </Pressable>
-
+    <SubpageScreenLayout title={t("settings.title")} useScrollView>
       <ThemedText type="caption" style={styles.sectionLabel}>
         {t("settings.appearance")}
       </ThemedText>
@@ -172,6 +140,6 @@ export default function SettingsScreen() {
           <IconSymbol name="chevron.right" size={22} color={c.textMuted} />
         </Pressable>
       </View>
-    </PageLayoutWithHeader>
+    </SubpageScreenLayout>
   );
 }
