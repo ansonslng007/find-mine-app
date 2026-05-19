@@ -1,3 +1,4 @@
+import { formatRelativeTime } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
@@ -45,7 +46,7 @@ export default function ChatConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const c = useAppColors();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { data: user } = useAuthUser();
   const socketRef = useRef<Socket | null>(null);
@@ -71,6 +72,7 @@ export default function ChatConversationScreen() {
       if (typeof conversationId !== "string" || conversationId.length === 0) {
         return;
       }
+      void qc.invalidateQueries({ queryKey: ["conversation", conversationId] });
       let cancelled = false;
       void (async () => {
         try {
@@ -206,10 +208,33 @@ export default function ChatConversationScreen() {
           alignItems: "center",
           paddingHorizontal: 12,
           paddingBottom: 10,
-          gap: 8,
           backgroundColor: c.cardBackground,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: c.borderSubtle,
+        },
+        topBarSide: {
+          width: 44,
+          alignItems: "flex-start",
+          justifyContent: "center",
+        },
+        topBarCenter: {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 0,
+          gap: 2,
+        },
+        peerName: {
+          fontWeight: "700",
+          fontSize: 17,
+          color: c.textPrimary,
+          textAlign: "center",
+        },
+        peerLastSeen: {
+          fontSize: 12,
+          fontWeight: "400",
+          color: "#4DB6AC",
+          textAlign: "center",
         },
         itemStrip: {
           flexDirection: "row",
@@ -326,6 +351,12 @@ export default function ChatConversationScreen() {
   const { conversation } = convQuery.data;
   const peerLabel =
     conversation.peer.displayName?.trim() || t("chat.anonymousMember");
+  const peerLastSeenLabel =
+    conversation.peer.lastSeenAt != null
+      ? t("chat.lastSeenOnline", {
+          time: formatRelativeTime(conversation.peer.lastSeenAt, t, locale),
+        })
+      : null;
   const item = conversation.item;
   const isLost = item.kind === "lost";
 
@@ -336,18 +367,22 @@ export default function ChatConversationScreen() {
       keyboardVerticalOffset={insets.top}
     >
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 8) }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-        >
-          <IconSymbol name="chevron.left" size={22} color={c.brand} />
-        </Pressable>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ThemedText type="default" style={{ fontWeight: "700", fontSize: 17 }} numberOfLines={1}>
+        <View style={styles.topBarSide}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <IconSymbol name="chevron.left" size={22} color={c.textPrimary} />
+          </Pressable>
+        </View>
+        <View style={styles.topBarCenter}>
+          <ThemedText type="default" style={styles.peerName} numberOfLines={1}>
             {peerLabel}
           </ThemedText>
+          {peerLastSeenLabel != null ? (
+            <ThemedText type="default" style={styles.peerLastSeen} numberOfLines={1}>
+              {peerLastSeenLabel}
+            </ThemedText>
+          ) : null}
         </View>
+        <View style={styles.topBarSide} />
       </View>
 
       <View style={styles.itemStrip}>

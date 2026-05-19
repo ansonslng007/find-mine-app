@@ -4,6 +4,7 @@ import type { ItemKind } from "./items";
 export type ChatPeer = {
   id: string;
   displayName: string | null;
+  lastSeenAt?: string | null;
 };
 
 export type ChatItemSummary = {
