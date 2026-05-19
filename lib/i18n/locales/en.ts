@@ -350,6 +350,22 @@ export const en = {
     notConnected: "Not connected. Please wait and try again.",
     sendFailed: "Message could not be sent.",
   },
+  edit: {
+    title: "Edit post",
+    subtitle: "Update your lost or found listing",
+    save: "Save changes",
+    saving: "Saving…",
+    success: "Changes saved.",
+    forbidden: "You can only edit your own posts.",
+    loadFailed: "Could not load post",
+    loading: "Loading…",
+    delete: "Delete post",
+    deleteConfirmTitle: "Delete this post?",
+    deleteConfirmBody:
+      "This cannot be undone. Related chats will be removed as well.",
+    deleteSuccess: "Post deleted.",
+    deleteFailed: "Could not delete post. Please try again.",
+  },
   detail: {
     missingId: "Missing item ID",
     back: "Back",
@@ -365,6 +381,10 @@ export const en = {
     openSourcePostFailedBody:
       "Check that a browser or the Facebook app is available.",
     youArePoster: "You posted this item.",
+    editPost: "Edit",
+    deletePost: "Delete",
+    sharePost: "Share",
+    moreActions: "More",
     contactUnavailableLegacy:
       "This listing has no linked poster account (older data). Messaging is only available for items published while signed in.",
     contactFailedTitle: "Could not open chat",
