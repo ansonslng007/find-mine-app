@@ -698,6 +698,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         title={t("form.mapPickTitle")}
         confirmLabel={t("form.mapPickConfirm")}
         addressLoadingLabel={t("form.mapPickAddressLoading")}
+        addressAnalyzingLabel={t("form.mapPickAddressAnalyzing")}
         reverseFailLabel={t("form.mapPickReverseFail")}
         dragHint={t("form.mapPickDragHint")}
         pinHint={t("form.mapPickPinHint")}

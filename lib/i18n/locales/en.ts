@@ -322,6 +322,7 @@ export const en = {
     mapPickTitle: "Pick location on map",
     mapPickConfirm: "Confirm this location",
     mapPickAddressLoading: "Resolving address…",
+    mapPickAddressAnalyzing: "Analyzing address…",
     mapPickReverseFail:
       "Could not resolve address; coordinates can still be saved.",
     mapPickDragHint:

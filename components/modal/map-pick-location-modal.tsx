@@ -93,6 +93,7 @@ type Props = Readonly<{
   title: string;
   confirmLabel: string;
   addressLoadingLabel: string;
+  addressAnalyzingLabel: string;
   reverseFailLabel: string;
   dragHint: string;
   /** Shown under the large pin before the user moves the map. */
@@ -112,6 +113,7 @@ export function MapPickLocationModal({
   title,
   confirmLabel,
   addressLoadingLabel,
+  addressAnalyzingLabel,
   reverseFailLabel,
   dragHint,
   pinHint,
@@ -168,6 +170,7 @@ export function MapPickLocationModal({
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
+      setAddressLabel("");
       setReverseLoading(true);
       try {
         const data = (await nominatimReverse(lat, lng, ac.signal)) as {
@@ -210,6 +213,8 @@ export function MapPickLocationModal({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      setAddressLabel("");
+      setReverseLoading(true);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
         void runReverse(lat, lng);
@@ -425,33 +430,43 @@ export function MapPickLocationModal({
           justifyContent: "flex-end",
         },
         animContainer: {
+          alignSelf: "stretch",
           alignItems: "center",
           justifyContent: "flex-end",
+          paddingHorizontal: 16,
           paddingBottom: 2,
         },
         addressPillWrap: {
+          alignSelf: "stretch",
+          width: "100%",
           alignItems: "center",
         },
-        addressPill: {
-          flexDirection: "row",
-          alignItems: "center",
-          borderRadius: 999,
-          backgroundColor: c.brand,
+        addressPillShadow: {
+          alignSelf: "stretch",
+          width: "100%",
+          borderRadius: 20,
           elevation: 6,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 3 },
           shadowOpacity: 0.35,
           shadowRadius: 6,
-          maxWidth: "88%",
-          alignSelf: "center",
+        },
+        addressPill: {
+          width: "100%",
+          flexDirection: "row",
+          alignItems: "stretch",
+          borderRadius: 20,
+          overflow: "hidden",
+          backgroundColor: c.brand,
         },
         addressPillLeft: {
           flexShrink: 0,
+          justifyContent: "center",
+          alignItems: "center",
           backgroundColor: c.cardBackground,
-          borderTopLeftRadius: 999,
-          borderBottomLeftRadius: 999,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
+          paddingHorizontal: 10,
+          paddingVertical: 10,
+          minWidth: 40,
         },
         addressPillLeftText: {
           fontSize: 14,
@@ -461,15 +476,29 @@ export function MapPickLocationModal({
         addressPillRight: {
           flex: 1,
           minWidth: 0,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+        },
+        addressPillRightLoading: {
+          flex: 1,
+          minWidth: 0,
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "center",
           gap: 8,
           paddingHorizontal: 12,
-          paddingVertical: 8,
+          paddingVertical: 10,
+          minHeight: 40,
+        },
+        addressPillRightLoadingText: {
+          fontSize: 14,
+          fontWeight: "600",
+          color: c.onBrand,
         },
         addressPillRightText: {
-          flex: 1,
+          flexShrink: 1,
           fontSize: 14,
+          lineHeight: 20,
           fontWeight: "600",
           color: c.onBrand,
         },
@@ -606,20 +635,28 @@ export function MapPickLocationModal({
           <Animated.View style={[styles.animContainer, pinAnimatedStyle]}>
             {showAddress && !mapMoving ? (
               <View style={styles.addressPillWrap}>
-                <View style={styles.addressPill}>
-                  <View style={styles.addressPillLeft}>
-                    <Text style={styles.addressPillLeftText}>由</Text>
-                  </View>
-                  <View style={styles.addressPillRight}>
+                <View style={styles.addressPillShadow}>
+                  <View style={styles.addressPill}>
+                    <View style={styles.addressPillLeft}>
+                      <Text style={styles.addressPillLeftText}>由</Text>
+                    </View>
                     {reverseLoading ? (
-                      <ActivityIndicator size="small" color={c.onBrand} />
-                    ) : null}
-                    <Text
-                      style={styles.addressPillRightText}
-                      numberOfLines={2}
-                    >
-                      {addressLabel.trim() || addressLoadingLabel}
-                    </Text>
+                      <View style={styles.addressPillRightLoading}>
+                        <ActivityIndicator size="small" color={c.onBrand} />
+                        <Text style={styles.addressPillRightLoadingText}>
+                          {addressAnalyzingLabel}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.addressPillRight}>
+                        <Text
+                          style={styles.addressPillRightText}
+                          numberOfLines={2}
+                        >
+                          {addressLabel.trim() || addressLoadingLabel}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <View style={[styles.pinTriangle, { borderTopColor: c.brand }]} />
