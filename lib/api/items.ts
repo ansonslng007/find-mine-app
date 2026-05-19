@@ -29,6 +29,8 @@ export type Item = {
   sourcePostUrl: string | null;
   /** External source, e.g. `facebook`; null when posted via the app. */
   platform: string | null;
+  /** Finder reward in HKD; only set for lost items. */
+  rewardAmount: number | null;
 };
 
 export type CreateItemResponse = {
@@ -51,6 +53,8 @@ export type CreateItemInput = {
   locationLatitude?: number;
   locationLongitude?: number;
   occurredAt?: string;
+  /** HKD reward for lost items; optional, defaults to 0. */
+  rewardAmount?: number;
   image: CreateItemImagePart;
 };
 
@@ -64,6 +68,7 @@ export type UpdateItemInput = {
   locationLatitude?: number;
   locationLongitude?: number;
   occurredAt?: string;
+  rewardAmount?: number;
   image?: CreateItemImagePart;
 };
 
@@ -335,6 +340,13 @@ function appendItemFieldsToForm(
   }
   if (input.occurredAt != null && input.occurredAt !== "") {
     form.append("occurredAt", input.occurredAt);
+  }
+  if (
+    input.kind === "lost" &&
+    input.rewardAmount !== undefined &&
+    Number.isFinite(input.rewardAmount)
+  ) {
+    form.append("rewardAmount", String(input.rewardAmount));
   }
 }
 
