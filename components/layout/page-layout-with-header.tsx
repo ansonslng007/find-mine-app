@@ -38,6 +38,7 @@ export function PageLayoutWithHeader({
         content: {
           flex: 1,
           paddingHorizontal: 16,
+          paddingVertical: 16,
         },
         headerOverlay: {
           position: "absolute",
