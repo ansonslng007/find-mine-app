@@ -5,6 +5,7 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
 
 import { RootAuthRedirect } from "@/components/root-auth-redirect";
@@ -20,14 +21,15 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ColorSchemePreferenceProvider>
-      <AppQueryProvider>
-        <I18nProvider>
-          <ThemeProvider
-            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-          >
-            <RootAuthRedirect />
-            <Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ColorSchemePreferenceProvider>
+        <AppQueryProvider>
+          <I18nProvider>
+            <ThemeProvider
+              value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+            >
+              <RootAuthRedirect />
+              <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="item/[id]"
@@ -91,10 +93,11 @@ export default function RootLayout() {
                 options={{ presentation: "modal", title: "Modal" }}
               />
             </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </I18nProvider>
-      </AppQueryProvider>
-    </ColorSchemePreferenceProvider>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </I18nProvider>
+        </AppQueryProvider>
+      </ColorSchemePreferenceProvider>
+    </GestureHandlerRootView>
   );
 }

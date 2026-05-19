@@ -1,12 +1,16 @@
 import { SubpageScreenLayout } from "@/components/layout/subpage-screen-layout";
+import {
+  BottomActionSheet,
+  type BottomActionSheetItem,
+} from "@/components/modal/bottom-action-sheet";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import type { AppLocale } from "@/lib/i18n/types";
 import { useColorSchemePreference } from "@/providers/color-scheme-preference-provider";
 import { useI18n } from "@/providers/i18n-provider";
-import React, { useCallback, useMemo } from "react";
-import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Switch, View } from "react-native";
 
 function languagePreferenceLabel(
   pref: AppLocale,
@@ -23,20 +27,20 @@ export default function SettingsScreen() {
   const { t, preference, setPreference: setLanguagePreference } = useI18n();
   const { effectiveScheme, setPreference: setThemePreference } =
     useColorSchemePreference();
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
 
-  const openLanguagePicker = useCallback(() => {
-    Alert.alert(t("settings.languagePickTitle"), undefined, [
-      {
-        text: t("settings.langZhHant"),
-        onPress: () => setLanguagePreference("zh-Hant"),
-      },
-      {
-        text: t("settings.langEn"),
-        onPress: () => setLanguagePreference("en"),
-      },
-      { text: t("common.cancel"), style: "cancel" },
-    ]);
-  }, [setLanguagePreference, t]);
+  const languageActions: BottomActionSheetItem[] = [
+    {
+      key: "zh-Hant",
+      label: t("settings.langZhHant"),
+      onPress: () => setLanguagePreference("zh-Hant"),
+    },
+    {
+      key: "en",
+      label: t("settings.langEn"),
+      onPress: () => setLanguagePreference("en"),
+    },
+  ];
 
   const isDarkMode = effectiveScheme === "dark";
 
@@ -125,7 +129,7 @@ export default function SettingsScreen() {
         <View style={styles.rowDivider} />
 
         <Pressable
-          onPress={openLanguagePicker}
+          onPress={() => setLanguageSheetVisible(true)}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
         >
           <View style={[styles.iconSquare, styles.iconGlobe]}>
@@ -140,6 +144,12 @@ export default function SettingsScreen() {
           <IconSymbol name="chevron.right" size={22} color={c.textMuted} />
         </Pressable>
       </View>
+
+      <BottomActionSheet
+        visible={languageSheetVisible}
+        onClose={() => setLanguageSheetVisible(false)}
+        actions={languageActions}
+      />
     </SubpageScreenLayout>
   );
 }

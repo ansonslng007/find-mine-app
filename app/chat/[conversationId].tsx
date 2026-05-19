@@ -1,3 +1,8 @@
+import { formatRelativeTime } from "@/components/lost-items/format";
+import {
+  BottomActionSheet,
+  type BottomActionSheetItem,
+} from "@/components/modal/bottom-action-sheet";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
@@ -6,6 +11,7 @@ import { useAppColors } from "@/hooks/use-app-colors";
 import { CHAT_UNREAD_COUNT_QUERY_KEY } from "@/hooks/use-chat-unread-count";
 import { getSocketBaseUrl } from "@/lib/chat/socket-base-url";
 import {
+  deleteConversation,
   getConversation,
   listMessages,
   markConversationRead,
@@ -45,11 +51,12 @@ export default function ChatConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const c = useAppColors();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { data: user } = useAuthUser();
   const socketRef = useRef<Socket | null>(null);
   const [draft, setDraft] = useState("");
+  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const convQuery = useQuery({
     queryKey: ["conversation", conversationId],
@@ -71,12 +78,14 @@ export default function ChatConversationScreen() {
       if (typeof conversationId !== "string" || conversationId.length === 0) {
         return;
       }
+      void qc.invalidateQueries({ queryKey: ["conversation", conversationId] });
       let cancelled = false;
       void (async () => {
         try {
           await markConversationRead(conversationId);
           if (!cancelled) {
             await qc.invalidateQueries({ queryKey: CHAT_UNREAD_COUNT_QUERY_KEY });
+            await qc.invalidateQueries({ queryKey: ["conversations"] });
           }
         } catch {
           // ignore read receipt failures (offline / 401)
@@ -197,6 +206,45 @@ export default function ChatConversationScreen() {
     );
   }, [conversationId, draft, t]);
 
+  const confirmDeleteConversation = useCallback(() => {
+    if (typeof conversationId !== "string" || conversationId.length === 0) {
+      return;
+    }
+    Alert.alert(t("chat.deleteConfirmTitle"), t("chat.deleteConfirmBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("chat.delete"),
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteConversation(conversationId);
+              await qc.invalidateQueries({ queryKey: ["conversations"] });
+              await qc.invalidateQueries({
+                queryKey: CHAT_UNREAD_COUNT_QUERY_KEY,
+              });
+              router.back();
+            } catch {
+              Alert.alert(t("chat.title"), t("chat.deleteFailed"));
+            }
+          })();
+        },
+      },
+    ]);
+  }, [conversationId, qc, router, t]);
+
+  const moreMenuActions = useMemo<BottomActionSheetItem[]>(
+    () => [
+      {
+        key: "delete",
+        label: t("chat.delete"),
+        destructive: true,
+        onPress: confirmDeleteConversation,
+      },
+    ],
+    [confirmDeleteConversation, t],
+  );
+
   const styles = useMemo(
     () =>
       StyleSheet.create({
@@ -206,10 +254,38 @@ export default function ChatConversationScreen() {
           alignItems: "center",
           paddingHorizontal: 12,
           paddingBottom: 10,
-          gap: 8,
           backgroundColor: c.cardBackground,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: c.borderSubtle,
+        },
+        topBarSide: {
+          width: 44,
+          alignItems: "flex-start",
+          justifyContent: "center",
+        },
+        topBarSideRight: {
+          width: 44,
+          alignItems: "flex-end",
+          justifyContent: "center",
+        },
+        topBarCenter: {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: 0,
+          gap: 2,
+        },
+        peerName: {
+          fontWeight: "700",
+          fontSize: 17,
+          color: c.textPrimary,
+          textAlign: "center",
+        },
+        peerLastSeen: {
+          fontSize: 12,
+          fontWeight: "400",
+          color: "#4DB6AC",
+          textAlign: "center",
         },
         itemStrip: {
           flexDirection: "row",
@@ -227,7 +303,24 @@ export default function ChatConversationScreen() {
           borderRadius: 10,
           backgroundColor: c.imagePlaceholder,
         },
-        itemMid: { flex: 1, minWidth: 0, gap: 6 },
+        itemMid: { flex: 1, minWidth: 0, gap: 4 },
+        itemTitleRow: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 0,
+        },
+        itemTitle: {
+          flex: 1,
+          fontSize: 16,
+          lineHeight: 20,
+          fontWeight: "600",
+          color: c.textPrimary,
+        },
+        itemDescription: {
+          fontSize: 14,
+          color: c.textMuted,
+        },
         linkBtn: {
           alignSelf: "flex-start",
           paddingVertical: 6,
@@ -236,10 +329,17 @@ export default function ChatConversationScreen() {
           backgroundColor: c.brand,
         },
         badge: {
-          alignSelf: "flex-start",
-          paddingHorizontal: 10,
-          paddingVertical: 4,
+          alignSelf: "center",
+          paddingHorizontal: 8,
+          paddingVertical: 2,
           borderRadius: 999,
+        },
+        badgeText: {
+          color: "#FFFFFF",
+          fontSize: 16,
+          fontWeight: "700",
+          lineHeight: 20,
+          includeFontPadding: false,
         },
         bubbleOut: {
           alignSelf: "flex-end",
@@ -326,8 +426,15 @@ export default function ChatConversationScreen() {
   const { conversation } = convQuery.data;
   const peerLabel =
     conversation.peer.displayName?.trim() || t("chat.anonymousMember");
+  const peerLastSeenLabel =
+    conversation.peer.lastSeenAt != null
+      ? t("chat.lastSeenOnline", {
+          time: formatRelativeTime(conversation.peer.lastSeenAt, t, locale),
+        })
+      : null;
   const item = conversation.item;
   const isLost = item.kind === "lost";
+  const itemDescription = item.description?.trim() ?? "";
 
   return (
     <KeyboardAvoidingView
@@ -336,55 +443,65 @@ export default function ChatConversationScreen() {
       keyboardVerticalOffset={insets.top}
     >
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 8) }]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-        >
-          <IconSymbol name="chevron.left" size={22} color={c.brand} />
-        </Pressable>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ThemedText type="default" style={{ fontWeight: "700", fontSize: 17 }} numberOfLines={1}>
+        <View style={styles.topBarSide}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <IconSymbol name="chevron.left" size={22} color={c.textPrimary} />
+          </Pressable>
+        </View>
+        <View style={styles.topBarCenter}>
+          <ThemedText type="default" style={styles.peerName} numberOfLines={1}>
             {peerLabel}
           </ThemedText>
+          {peerLastSeenLabel != null ? (
+            <ThemedText type="default" style={styles.peerLastSeen} numberOfLines={1}>
+              {peerLastSeenLabel}
+            </ThemedText>
+          ) : null}
+        </View>
+        <View style={styles.topBarSideRight}>
+          <Pressable onPress={() => setMoreMenuVisible(true)} hitSlop={12}>
+            <IconSymbol name="ellipsis" size={22} color={c.textPrimary} />
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.itemStrip}>
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: ROUTE_PATH.ITEM,
+            params: { id: item.id },
+          })
+        }
+        style={styles.itemStrip}
+      >
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.itemThumb}
           contentFit="cover"
         />
         <View style={styles.itemMid}>
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: isLost ? c.badgeLost : c.badgeFound },
-            ]}
-          >
-            <ThemedText type="default" style={{ color: "#FFF", fontSize: 12, fontWeight: "700" }}>
-              {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+          <View style={styles.itemTitleRow}>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: isLost ? c.badgeLost : c.badgeFound },
+              ]}
+            >
+              <ThemedText type="default" style={styles.badgeText}>
+                {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+              </ThemedText>
+            </View>
+            <ThemedText type="default" style={styles.itemTitle} numberOfLines={1}>
+              {item.title}
             </ThemedText>
           </View>
-          <ThemedText type="default" style={{ fontWeight: "600", color: c.textPrimary }} numberOfLines={2}>
-            {item.title}
-          </ThemedText>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: ROUTE_PATH.ITEM,
-                params: { id: item.id },
-              })
-            }
-            style={styles.linkBtn}
-          >
-            <ThemedText type="body" style={{ color: c.onBrand, fontWeight: "600", fontSize: 14 }}>
-              {t("chat.openItemDetail")}
+          {itemDescription.length > 0 ? (
+            <ThemedText type="default" style={styles.itemDescription} numberOfLines={1}>
+              {itemDescription}
             </ThemedText>
-          </Pressable>
+          ) : null}
         </View>
-      </View>
+      </Pressable>
 
       <FlatList
         style={{ flex: 1 }}
@@ -448,6 +565,12 @@ export default function ChatConversationScreen() {
           <IconSymbol name="arrow.up.circle.fill" size={28} color={c.onBrand} />
         </Pressable>
       </View>
+
+      <BottomActionSheet
+        visible={moreMenuVisible}
+        onClose={() => setMoreMenuVisible(false)}
+        actions={moreMenuActions}
+      />
     </KeyboardAvoidingView>
   );
 }

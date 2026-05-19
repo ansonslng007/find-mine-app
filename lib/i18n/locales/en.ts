@@ -356,6 +356,7 @@ export const en = {
     loadFailed: "Could not load conversations.",
     noMessagesYet: "No messages yet.",
     anonymousMember: "Member",
+    lastSeenOnline: "Last online %{time}",
     missingConversation: "Missing conversation.",
     openItemDetail: "View item details",
     inputPlaceholder: "Message…",
@@ -363,6 +364,10 @@ export const en = {
     joinFailed: "Could not join this chat room.",
     notConnected: "Not connected. Please wait and try again.",
     sendFailed: "Message could not be sent.",
+    delete: "Delete",
+    deleteConfirmTitle: "Delete this chat?",
+    deleteConfirmBody: "This cannot be undone. All messages will be removed.",
+    deleteFailed: "Could not delete the chat. Please try again.",
   },
   edit: {
     title: "Edit post",

@@ -340,6 +340,7 @@ export const zhHant = {
     loadFailed: "無法載入對話。",
     noMessagesYet: "尚無訊息。",
     anonymousMember: "會員",
+    lastSeenOnline: "%{time}上線",
     missingConversation: "缺少對話編號。",
     openItemDetail: "查看物品詳情",
     inputPlaceholder: "輸入訊息…",
@@ -347,6 +348,10 @@ export const zhHant = {
     joinFailed: "無法加入聊天室。",
     notConnected: "尚未連線，請稍候再試。",
     sendFailed: "訊息無法送出。",
+    delete: "刪除",
+    deleteConfirmTitle: "刪除此對話？",
+    deleteConfirmBody: "刪除後無法復原，訊息將一併移除。",
+    deleteFailed: "無法刪除對話，請再試一次。",
   },
   edit: {
     title: "編輯貼文",
