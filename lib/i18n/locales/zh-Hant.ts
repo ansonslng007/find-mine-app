@@ -131,6 +131,16 @@ export const zhHant = {
     biometricPasswordPlaceholder: "密碼",
     biometricPasswordContinue: "繼續",
     biometricHardwareUnavailable: "此裝置無法使用生物辨識。",
+    myItemsTitle: "我的失物／尋獲",
+    myItemsSubtitle: "你發布的遺失與尋獲貼文",
+  },
+  myItems: {
+    title: "我的失物／尋獲",
+    tabLost: "遺失",
+    tabFound: "尋獲",
+    loading: "載入中…",
+    empty: "尚無貼文",
+    needSignIn: "請先登入以查看你的貼文。",
   },
   auth: {
     errors: {

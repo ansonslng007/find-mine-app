@@ -136,6 +136,16 @@ export const en = {
     biometricPasswordContinue: "Continue",
     biometricHardwareUnavailable:
       "Biometrics are not available on this device.",
+    myItemsTitle: "My lost & found",
+    myItemsSubtitle: "Posts you published",
+  },
+  myItems: {
+    title: "My lost & found",
+    tabLost: "Lost",
+    tabFound: "Found",
+    loading: "Loading…",
+    empty: "No posts yet",
+    needSignIn: "Sign in to view your posts.",
   },
   auth: {
     errors: {

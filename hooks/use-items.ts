@@ -19,6 +19,7 @@ export function useItem(id: string | undefined) {
 
 export function useItemsList(params?: ListItemsParams) {
   const kind = params?.kind;
+  const mine = params?.mine;
   const limit = params?.limit ?? 50;
   const offset = params?.offset ?? 0;
   const occurredAfter = params?.occurredAfter;
@@ -32,6 +33,7 @@ export function useItemsList(params?: ListItemsParams) {
       "items",
       {
         kind,
+        mine,
         limit,
         offset,
         occurredAfter,
@@ -44,6 +46,7 @@ export function useItemsList(params?: ListItemsParams) {
     queryFn: () =>
       listItems({
         kind,
+        mine,
         limit,
         offset,
         occurredAfter,
