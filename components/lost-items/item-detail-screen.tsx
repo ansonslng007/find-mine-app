@@ -4,13 +4,13 @@ import {
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useAppColors } from "@/hooks/use-app-colors";
 import { ROUTE_PATH } from "@/constants/routePath";
+import { useAppColors } from "@/hooks/use-app-colors";
 import { useAuthUser } from "@/hooks/use-auth-user";
 import { useDeleteItem } from "@/hooks/use-delete-item";
 import { useItem } from "@/hooks/use-items";
-import { ApiError } from "@/lib/api/client";
 import { createConversation } from "@/lib/api/chat";
+import { ApiError } from "@/lib/api/client";
 import {
   formatItemPlatformTag,
   isFacebookImport,
@@ -18,7 +18,7 @@ import {
 } from "@/lib/item-platform";
 import { useI18n } from "@/providers/i18n-provider";
 import { Image } from "expo-image";
-import * as ExpoLinking from "expo-linking";
+import { buildItemShareUrl } from "@/lib/item-share-url";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
@@ -26,6 +26,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -284,8 +285,7 @@ export function ItemDetailScreen() {
     poster != null &&
     authUser != null &&
     poster.id === authUser.id;
-  const canMessagePoster =
-    !isFbGroupImport && poster != null && !isOwnPoster;
+  const canMessagePoster = !isFbGroupImport && poster != null && !isOwnPoster;
 
   const handleOpenSourcePost = async () => {
     if (!sourcePostUrl) return;
@@ -348,13 +348,19 @@ export function ItemDetailScreen() {
   };
 
   const handleSharePost = async () => {
-    const url = ExpoLinking.createURL(`/item/${item.id}`);
+    const url = buildItemShareUrl(item.id);
     try {
-      await Share.share({
-        title: item.title,
-        message: `${item.title}\n${url}`,
-        url,
-      });
+      if (Platform.OS === "ios") {
+        await Share.share({
+          message: item.title,
+          url,
+        });
+      } else {
+        await Share.share({
+          title: item.title,
+          message: `${item.title}\n${url}`,
+        });
+      }
     } catch {
       // User dismissed share sheet.
     }
@@ -463,7 +469,10 @@ export function ItemDetailScreen() {
               {item.title}
             </ThemedText>
             <View
-              style={[styles.badge, !isLost && { backgroundColor: c.badgeFound }]}
+              style={[
+                styles.badge,
+                !isLost && { backgroundColor: c.badgeFound },
+              ]}
             >
               <Text style={styles.badgeText}>
                 {isLost ? t("card.badgeLost") : t("card.badgeFound")}

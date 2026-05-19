@@ -413,6 +413,20 @@ export default function ProfileScreen() {
             busy={bioBusy}
             onValueChange={handleBiometricToggle}
           />
+          <ProfileCard
+            title={t("profile.myItemsTitle")}
+            subtitle={t("profile.myItemsSubtitle")}
+            onPress={() => router.push(ROUTE_PATH.PROFILE_MY_ITEMS)}
+            left={
+              <View style={styles.smallIconCircle}>
+                <IconSymbol
+                  name="shippingbox.fill"
+                  size={24}
+                  color={c.brand}
+                />
+              </View>
+            }
+          />
         </>
       ) : null}
 
