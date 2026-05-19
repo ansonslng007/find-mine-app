@@ -38,6 +38,9 @@ const HK_REGION: Region = {
 /** Approximate distance in meters; enough to ignore float and animation drift. */
 const MOVE_UNLOCK_METERS = 28;
 
+/** Ignore region-complete jitter (Android fires the callback repeatedly). */
+const REGION_COMPLETE_JITTER_METERS = 4;
+
 function distanceMeters(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
@@ -124,6 +127,7 @@ export function MapPickLocationModal({
   const abortRef = useRef<AbortController | null>(null);
   const openingBaselineRef = useRef<{ lat: number; lng: number } | null>(null);
   const addressUnlockedRef = useRef(false);
+  const lastReverseCenterRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [centerLat, setCenterLat] = useState(HK_REGION.latitude);
   const [centerLng, setCenterLng] = useState(HK_REGION.longitude);
@@ -186,9 +190,7 @@ export function MapPickLocationModal({
           setAddressLabel(reverseFailLabel);
         }
       } finally {
-        if (!ac.signal.aborted) {
-          setReverseLoading(false);
-        }
+        setReverseLoading(false);
       }
     },
     [formatAddressFromNominatim, reverseFailLabel],
@@ -196,10 +198,18 @@ export function MapPickLocationModal({
 
   const scheduleReverse = useCallback(
     (lat: number, lng: number) => {
+      const prev = lastReverseCenterRef.current;
+      if (
+        prev != null &&
+        distanceMeters(prev, { lat, lng }) < REGION_COMPLETE_JITTER_METERS
+      ) {
+        return;
+      }
+      lastReverseCenterRef.current = { lat, lng };
+
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
-      setReverseLoading(true);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
         void runReverse(lat, lng);
@@ -242,6 +252,7 @@ export function MapPickLocationModal({
     }
     openingBaselineRef.current = null;
     addressUnlockedRef.current = false;
+    lastReverseCenterRef.current = null;
     setShowAddress(false);
     setMapMoving(false);
     setAddressLabel("");
@@ -285,6 +296,7 @@ export function MapPickLocationModal({
         if (moved) {
           addressUnlockedRef.current = true;
           setShowAddress(true);
+          lastReverseCenterRef.current = null;
           scheduleReverse(region.latitude, region.longitude);
         }
         return;
@@ -320,6 +332,7 @@ export function MapPickLocationModal({
       addressUnlockedRef.current = true;
       setShowAddress(true);
       setMapMoving(false);
+      lastReverseCenterRef.current = null;
       scheduleReverse(latitude, longitude);
     } catch {
       Alert.alert(locationFailedTitle, locationFailedBody);
@@ -423,7 +436,6 @@ export function MapPickLocationModal({
           flexDirection: "row",
           alignItems: "center",
           borderRadius: 999,
-          overflow: "hidden",
           backgroundColor: c.brand,
           elevation: 6,
           shadowColor: "#000",
@@ -431,9 +443,13 @@ export function MapPickLocationModal({
           shadowOpacity: 0.35,
           shadowRadius: 6,
           maxWidth: "88%",
+          alignSelf: "center",
         },
         addressPillLeft: {
+          flexShrink: 0,
           backgroundColor: c.cardBackground,
+          borderTopLeftRadius: 999,
+          borderBottomLeftRadius: 999,
           paddingHorizontal: 12,
           paddingVertical: 8,
         },
@@ -443,11 +459,16 @@ export function MapPickLocationModal({
           color: c.textPrimary,
         },
         addressPillRight: {
+          flex: 1,
+          minWidth: 0,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
           paddingHorizontal: 12,
           paddingVertical: 8,
-          flexShrink: 1,
         },
         addressPillRightText: {
+          flex: 1,
           fontSize: 14,
           fontWeight: "600",
           color: c.onBrand,
@@ -531,7 +552,7 @@ export function MapPickLocationModal({
           textAlign: "center",
         },
       }),
-    [insets.top],
+    [c, insets.top],
   );
 
   const canConfirm = !!addressLabel && !reverseLoading && !mapMoving;
@@ -590,16 +611,15 @@ export function MapPickLocationModal({
                     <Text style={styles.addressPillLeftText}>由</Text>
                   </View>
                   <View style={styles.addressPillRight}>
-                    {reverseLoading && !addressLabel ? (
+                    {reverseLoading ? (
                       <ActivityIndicator size="small" color={c.onBrand} />
-                    ) : (
-                      <Text
-                        style={styles.addressPillRightText}
-                        numberOfLines={1}
-                      >
-                        {addressLabel || addressLoadingLabel}
-                      </Text>
-                    )}
+                    ) : null}
+                    <Text
+                      style={styles.addressPillRightText}
+                      numberOfLines={2}
+                    >
+                      {addressLabel.trim() || addressLoadingLabel}
+                    </Text>
                   </View>
                 </View>
                 <View style={[styles.pinTriangle, { borderTopColor: c.brand }]} />

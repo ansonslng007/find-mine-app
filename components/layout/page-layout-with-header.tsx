@@ -78,6 +78,8 @@ export function PageLayoutWithHeader({
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
             contentContainerStyle={pageStyles.scrollContent}
           >
             {children}
