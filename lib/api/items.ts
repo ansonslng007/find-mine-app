@@ -54,8 +54,27 @@ export type CreateItemInput = {
   image: CreateItemImagePart;
 };
 
+export type UpdateItemInput = {
+  itemId: string;
+  kind: ItemKind;
+  title: string;
+  category: string;
+  description?: string;
+  locationText?: string;
+  locationLatitude?: number;
+  locationLongitude?: number;
+  occurredAt?: string;
+  image?: CreateItemImagePart;
+};
+
+export type UpdateItemResponse = {
+  item: Item;
+};
+
 export type ListItemsParams = {
   kind?: ItemKind;
+  /** When true, only items posted by the signed-in user. */
+  mine?: boolean;
   limit?: number;
   offset?: number;
   /** ISO 8601: occurred_at >= this. */
@@ -79,6 +98,7 @@ export async function listItems(
   const { data } = await apiClient.get<ListItemsResponse>("/api/v1/items", {
     params: {
       kind: params?.kind,
+      mine: params?.mine === true ? "true" : undefined,
       limit: params?.limit,
       offset: params?.offset,
       occurredAfter: params?.occurredAfter,
@@ -275,6 +295,26 @@ export async function createItem(
   input: CreateItemInput,
 ): Promise<CreateItemResponse> {
   const form = new FormData();
+  appendItemFieldsToForm(form, input);
+  form.append(
+    "image",
+    {
+      uri: input.image.uri,
+      name: input.image.name,
+      type: input.image.type,
+    } as any,
+  );
+  const { data } = await apiClient.post<CreateItemResponse>(
+    "/api/v1/items",
+    form,
+  );
+  return data;
+}
+
+function appendItemFieldsToForm(
+  form: FormData,
+  input: Omit<CreateItemInput, "image">,
+): void {
   form.append("kind", input.kind);
   form.append("title", input.title);
   form.append("category", input.category);
@@ -296,17 +336,30 @@ export async function createItem(
   if (input.occurredAt != null && input.occurredAt !== "") {
     form.append("occurredAt", input.occurredAt);
   }
-  form.append(
-    "image",
-    {
-      uri: input.image.uri,
-      name: input.image.name,
-      type: input.image.type,
-    } as any,
-  );
-  const { data } = await apiClient.post<CreateItemResponse>(
-    "/api/v1/items",
+}
+
+export async function updateItem(
+  input: UpdateItemInput,
+): Promise<UpdateItemResponse> {
+  const form = new FormData();
+  appendItemFieldsToForm(form, input);
+  if (input.image != null) {
+    form.append(
+      "image",
+      {
+        uri: input.image.uri,
+        name: input.image.name,
+        type: input.image.type,
+      } as any,
+    );
+  }
+  const { data } = await apiClient.patch<UpdateItemResponse>(
+    `/api/v1/items/${input.itemId}`,
     form,
   );
   return data;
+}
+
+export async function deleteItem(itemId: string): Promise<void> {
+  await apiClient.delete(`/api/v1/items/${itemId}`);
 }

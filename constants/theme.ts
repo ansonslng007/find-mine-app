@@ -23,6 +23,8 @@ export const Colors = {
     textMuted: '#6B7280',
     borderSubtle: '#E5E7EB',
     brand: '#2563EB',
+    /** Light fill for brand-tinted ranges (e.g. calendar period). */
+    brandSoft: '#DBEAFE',
     danger: '#B91C1C',
     badgeLost: '#D40924',
     badgeFound: '#11AD32',
@@ -45,6 +47,7 @@ export const Colors = {
     textMuted: '#9CA3AF',
     borderSubtle: '#3F3F46',
     brand: '#3B82F6',
+    brandSoft: '#1E3A5F',
     danger: '#FCA5A5',
     badgeLost: '#D40924',
     badgeFound: '#11AD32',
