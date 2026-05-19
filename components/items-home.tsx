@@ -653,6 +653,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       screenTitle={homeT("title")}
       screenSubtitle={homeT("subtitle")}
       icon="shippingbox.fill"
+      iconBackgroundColor={kind === "lost" ? c.badgeLost : c.badgeFound}
       useScrollView={false}
     >
       <SearchFilterRow

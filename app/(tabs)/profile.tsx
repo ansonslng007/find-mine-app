@@ -419,7 +419,7 @@ export default function ProfileScreen() {
     <PageLayoutWithHeader
       screenTitle={t("profile.title")}
       screenSubtitle={t("profile.subtitle")}
-      icon="shippingbox.fill"
+      icon="person.fill"
     >
       {accountCard}
 

@@ -10,6 +10,7 @@ type PageLayoutWithHeaderProps = Readonly<{
   screenTitle: string;
   screenSubtitle: string;
   icon: ComponentProps<typeof IconSymbol>["name"];
+  iconBackgroundColor?: string;
   useScrollView?: boolean;
   headerRight?: React.ReactNode;
 }>;
@@ -19,6 +20,7 @@ export function PageLayoutWithHeader({
   screenSubtitle,
   screenTitle,
   icon,
+  iconBackgroundColor,
   useScrollView = true,
   headerRight,
 }: PageLayoutWithHeaderProps) {
@@ -65,6 +67,7 @@ export function PageLayoutWithHeader({
           screenTitle={screenTitle}
           screenSubtitle={screenSubtitle}
           icon={icon}
+          iconBackgroundColor={iconBackgroundColor}
           headerRight={headerRight}
         />
       </View>
