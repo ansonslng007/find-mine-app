@@ -44,7 +44,7 @@ export const zhHant = {
     modelLoading: "模型載入中…",
     classifying: "辨識圖片中…",
     searching: "搜尋中…",
-    occurredRangeOpen: "選擇時間範圍",
+    occurredRangeOpen: "選擇遺失時間範圍",
     occurredRangeTitle: "遺失時間範圍",
     occurredRangeHint: "先點起始日，再點結束日；單日請選一天後按完成。",
     occurredRangeDone: "完成",
