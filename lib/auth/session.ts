@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { AuthUser } from "@/lib/api/auth";
 
 import { clearAuthToken } from "@/lib/auth/token-storage";
+import { unregisterDevicePushToken } from "@/lib/push/unregister-device-push-token";
 
 const USER_KEY = "findmine_auth_user";
 
@@ -43,6 +44,7 @@ export async function loadAuthUser(): Promise<AuthUser | null> {
 
 /** Sign-out: clears token and cached member locally; keeps biometric prefs and credentials so Face ID / fingerprint login still works after sign-out. */
 export async function clearAuthSession(): Promise<void> {
+  await unregisterDevicePushToken();
   await clearAuthToken();
   await AsyncStorage.removeItem(USER_KEY);
 }
