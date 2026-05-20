@@ -40,6 +40,25 @@ export function formatRelativeTime(
   return dateStr;
 }
 
+/** Local calendar date for item occurredAt (lost/found time). */
+export function formatOccurredAt(
+  iso: string | null | undefined,
+  locale: AppLocale,
+): string | null {
+  if (iso == null || iso.trim() === "") {
+    return null;
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  return d.toLocaleDateString(locale === "zh-Hant" ? "zh-TW" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return `${s.slice(0, max - 1)}…`;

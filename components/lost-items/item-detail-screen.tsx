@@ -1,5 +1,6 @@
 import {
   formatItemRewardAmount,
+  formatOccurredAt,
   formatRelativeTime,
   hasDisplayableReward,
   inferItemCategoryId,
@@ -295,6 +296,10 @@ export function ItemDetailScreen() {
           locale,
         )
       : null;
+  const occurredAtFormatted = formatOccurredAt(item.occurredAt, locale);
+  const occurredAtLabel = isLost
+    ? t("detail.occurredAtLost")
+    : t("detail.occurredAtFound");
   const isFbGroupImport = isFacebookImport(item);
   const isOwnPoster =
     !isFbGroupImport &&
@@ -508,6 +513,14 @@ export function ItemDetailScreen() {
               <IconSymbol name="tag.fill" size={18} color={c.textMuted} />
               <Text style={styles.metaText}>{categoryLabel}</Text>
             </View>
+            {occurredAtFormatted ? (
+              <View style={styles.metaItem}>
+                <IconSymbol name="calendar" size={18} color={c.textMuted} />
+                <Text style={styles.metaText}>
+                  {occurredAtLabel} {occurredAtFormatted}
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.metaItem}>
               <IconSymbol name="clock" size={18} color={c.textMuted} />
               <Text style={styles.metaText}>
