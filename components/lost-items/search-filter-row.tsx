@@ -1,6 +1,6 @@
-import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import type { LocationPickChange } from "@/components/location/location-pick-field";
 import { LocationPickField } from "@/components/location/location-pick-field";
+import { CategoryChipRow } from "@/components/lost-items/category-chip-row";
 import { DateRangePickerModal } from "@/components/modal/date-range-picker-modal";
 import { ThemedText } from "@/components/themed-text";
 import { IconButton } from "@/components/ui/icon-button";
@@ -16,12 +16,7 @@ import type { AppLocale } from "@/lib/i18n/types";
 import { useI18n } from "@/providers/i18n-provider";
 import Slider from "@react-native-community/slider";
 import React, { useMemo, useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 /** Track horizontal inset (logical px) so labels align roughly with the @react-native-community/slider thumb center. */
 const SLIDER_THUMB_TRACK_INSET = 14;
@@ -32,7 +27,6 @@ const RADIUS_LABEL_I18N_KEYS = [
   "searchGeoRadius5km",
   "searchGeoRadius10km",
 ] as const;
-
 
 type SearchGeoState = {
   lat: number;
@@ -218,7 +212,6 @@ function SearchGeoSection({
     </View>
   );
 }
-
 
 export function SearchFilterRow({
   query,
