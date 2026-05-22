@@ -412,6 +412,8 @@ export const zhHant = {
     kindFound: "尋獲",
     messageSource: "發現與你的貼文相似的%{peer}",
     messageMatched: "有新的%{kind}貼文與你的貼文相似",
+    delete: "刪除這則通知",
+    deleteFailed: "無法刪除通知，請再試一次",
   },
   modal: {
     title: "這是一個彈出視窗",
