@@ -68,6 +68,14 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="notifications"
+                options={{
+                  headerShown: false,
+                  presentation: "card",
+                  animation: "slide_from_right",
+                }}
+              />
+              <Stack.Screen
                 name="settings"
                 options={{
                   headerShown: false,

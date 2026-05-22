@@ -182,20 +182,27 @@ function ConversationRow({
   const timeLabel = timeIso ? formatChatListTime(timeIso, locale) : "";
   const unreadBadgeLabel =
     unreadCount > 99 ? "99+" : String(unreadCount);
+  const itemTitle = entry.item
+    ? truncate(entry.item.title, 42)
+    : t("chat.itemDeleted");
 
   return (
     <Pressable onPress={onPress} style={styles.row}>
-      <Image
-        source={{ uri: entry.item.imageUrl }}
-        style={styles.thumb}
-        contentFit="cover"
-      />
+      {entry.item ? (
+        <Image
+          source={{ uri: entry.item.imageUrl }}
+          style={styles.thumb}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={styles.thumb} />
+      )}
       <View style={styles.mid}>
         <ThemedText type="default" style={styles.peer} numberOfLines={1}>
           {peerLabel}
         </ThemedText>
         <ThemedText type="default" style={styles.title} numberOfLines={1}>
-          {truncate(entry.item.title, 42)}
+          {itemTitle}
         </ThemedText>
         <ThemedText type="default" style={styles.sub} numberOfLines={2}>
           {entry.lastMessage?.body ?? t("chat.noMessagesYet")}
