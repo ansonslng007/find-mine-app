@@ -206,6 +206,8 @@ export type SearchByImageParams = {
   mime: string;
   kind?: ItemKind;
   limit?: number;
+  /** Cosine distance upper bound (0–2); lower = stricter similarity. */
+  maxDistance?: number;
   occurredAfter?: string;
   occurredBefore?: string;
   nearLat?: number;
@@ -221,6 +223,7 @@ export type SearchByImageResult = {
 export type SearchByImageResponse = {
   results: SearchByImageResult[];
   modelVersion: string;
+  maxDistance: number;
 };
 
 export async function searchByImage(
@@ -240,6 +243,9 @@ export async function searchByImage(
   }
   if (params.limit != null) {
     form.append("limit", String(params.limit));
+  }
+  if (params.maxDistance != null) {
+    form.append("maxDistance", String(params.maxDistance));
   }
   if (params.occurredAfter != null) {
     form.append("occurredAfter", params.occurredAfter);
