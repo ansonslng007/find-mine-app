@@ -46,6 +46,12 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
     vibrationPattern: [0, 250, 250, 250],
     lightColor: "#2563EB",
   });
+  await Notifications.setNotificationChannelAsync("item-matches", {
+    name: "Item matches",
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#2563EB",
+  });
 }
 
 export async function obtainExpoPushToken(): Promise<string | null> {

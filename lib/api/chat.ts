@@ -17,7 +17,8 @@ export type ChatItemSummary = {
 
 export type ConversationListEntry = {
   id: string;
-  item: ChatItemSummary;
+  /** null when the linked listing was deleted */
+  item: ChatItemSummary | null;
   peer: ChatPeer;
   lastMessage: { body: string; at: string | null } | null;
   unreadCount: number;
@@ -55,7 +56,7 @@ export async function createConversation(input: {
 export type ConversationDetailResponse = {
   conversation: {
     id: string;
-    item: ChatItemSummary;
+    item: ChatItemSummary | null;
     peer: ChatPeer;
   };
 };

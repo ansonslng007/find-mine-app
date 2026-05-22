@@ -12,7 +12,9 @@ import {
   clearStoredPushToken,
   saveStoredPushToken,
 } from "@/lib/push/push-token-storage";
+import { ROUTE_PATH } from "@/constants/routePath";
 import { useAuthUser } from "@/hooks/use-auth-user";
+import { invalidateNotificationQueries } from "@/hooks/use-notifications";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,6 +34,20 @@ function conversationIdFromNotificationData(
     return null;
   }
   return row.conversationId;
+}
+
+function matchedItemIdFromNotificationData(data: unknown): string | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+  const row = data as { type?: unknown; matchedItemId?: unknown };
+  if (row.type !== "item_match") {
+    return null;
+  }
+  if (typeof row.matchedItemId !== "string" || !row.matchedItemId) {
+    return null;
+  }
+  return row.matchedItemId;
 }
 
 export function PushNotificationsSetup() {
@@ -78,11 +94,15 @@ export function PushNotificationsSetup() {
   useEffect(() => {
     const receivedSub = Notifications.addNotificationReceivedListener(
       (notification) => {
-        const convId = conversationIdFromNotificationData(
-          notification.request.content.data,
-        );
+        const data = notification.request.content.data;
+        const convId = conversationIdFromNotificationData(data);
+        const itemId = matchedItemIdFromNotificationData(data);
+
         if (convId) {
           invalidateChatListQueries(qc);
+        }
+        if (itemId) {
+          invalidateNotificationQueries(qc);
         }
         if (shouldSuppressChatNotificationBanner(convId)) {
           void Notifications.dismissNotificationAsync(
@@ -94,13 +114,20 @@ export function PushNotificationsSetup() {
 
     const responseSub =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        const convId = conversationIdFromNotificationData(
-          response.notification.request.content.data,
-        );
-        if (!convId) {
+        const data = response.notification.request.content.data;
+        const convId = conversationIdFromNotificationData(data);
+        if (convId) {
+          router.push(`/chat/${convId}`);
           return;
         }
-        router.push(`/chat/${convId}`);
+        const itemId = matchedItemIdFromNotificationData(data);
+        if (itemId) {
+          invalidateNotificationQueries(qc);
+          router.push({
+            pathname: ROUTE_PATH.ITEM,
+            params: { id: itemId },
+          });
+        }
       });
 
     return () => {

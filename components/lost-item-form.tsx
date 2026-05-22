@@ -1,8 +1,8 @@
+import { LocationPickField } from "@/components/location/location-pick-field";
 import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
 import { DatePickerModal } from "@/components/modal/date-picker-modal";
 import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
 import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
-import { LocationPickField } from "@/components/location/location-pick-field";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -159,7 +159,6 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setObjectHint(t("form.categoryHintDefault"));
   }, [t, locale]);
 
-
   useEffect(() => {
     if (!isEdit || props.mode !== "edit") {
       return;
@@ -194,9 +193,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
       dateStr ? new Date(parseOccurredAtIso(dateStr) ?? Date.now()) : null,
     );
     setTimeInputError("");
-    setObjectHint(
-      cat ? t(`categories.${cat}`) : t("form.categoryHintDefault"),
-    );
+    setObjectHint(cat ? t(`categories.${cat}`) : t("form.categoryHintDefault"));
   }, [isEdit, props, t]);
 
   useEffect(() => {
@@ -559,9 +556,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     kind === "lost" ? t("form.locationLost") : t("form.locationFound");
 
   const screenTitle = isEdit ? t("edit.title") : t("form.screenTitle");
-  const screenSubtitle = isEdit
-    ? t("edit.subtitle")
-    : t("form.screenSubtitle");
+  const screenSubtitle = isEdit ? t("edit.subtitle") : t("form.screenSubtitle");
   const submitLabel = isEdit
     ? t("edit.save")
     : kind === "lost"
@@ -755,9 +750,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
               placeholder={t("form.rewardPlaceholder")}
               placeholderTextColor={c.placeholder}
               value={rewardInput}
-              onChangeText={(text) =>
-                setRewardInput(sanitizeRewardInput(text))
-              }
+              onChangeText={(text) => setRewardInput(sanitizeRewardInput(text))}
               keyboardType="decimal-pad"
             />
           </View>

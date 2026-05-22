@@ -50,6 +50,8 @@ const MAPPING = {
   "trash.fill": "delete-outline",
   "square.and.arrow.up": "ios-share",
   ellipsis: "more-vert",
+  bell: "notifications-none",
+  "bell.fill": "notifications",
 } as IconMapping;
 
 /**
