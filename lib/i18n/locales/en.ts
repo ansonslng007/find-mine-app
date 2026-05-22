@@ -430,6 +430,8 @@ export const en = {
     kindFound: "found item",
     messageSource: "A similar %{peer} matches your post",
     messageMatched: "A new %{kind} post is similar to yours",
+    delete: "Delete this notification",
+    deleteFailed: "Could not delete notification. Please try again.",
   },
   modal: {
     title: "This is a modal",

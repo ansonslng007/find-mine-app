@@ -1,8 +1,13 @@
 import { formatNotificationTime } from "@/components/notifications/format-notification-time";
+import {
+  BottomActionSheet,
+  type BottomActionSheetItem,
+} from "@/components/modal/bottom-action-sheet";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import {
+  useDeleteNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsList,
@@ -16,6 +21,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Linking,
   Pressable,
@@ -51,7 +57,29 @@ type NotificationRowProps = Readonly<{
 function NotificationRow({ item, onPress }: NotificationRowProps) {
   const c = useAppColors();
   const { t, locale } = useI18n();
+  const deleteNotification = useDeleteNotification();
+  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
   const isUnread = item.readAt == null;
+
+  const handleDelete = useCallback(() => {
+    deleteNotification.mutate(item.id, {
+      onError: () => {
+        Alert.alert(t("notifications.title"), t("notifications.deleteFailed"));
+      },
+    });
+  }, [deleteNotification, item.id, t]);
+
+  const moreMenuActions = useMemo<BottomActionSheetItem[]>(
+    () => [
+      {
+        key: "delete",
+        label: t("notifications.delete"),
+        destructive: true,
+        onPress: handleDelete,
+      },
+    ],
+    [handleDelete, t],
+  );
 
   const styles = useMemo(
     () =>
@@ -60,7 +88,14 @@ function NotificationRow({ item, onPress }: NotificationRowProps) {
           flexDirection: "row",
           alignItems: "flex-start",
           paddingVertical: 14,
-          paddingHorizontal: 16,
+          paddingLeft: 16,
+          paddingRight: 8,
+          gap: 10,
+        },
+        mainPress: {
+          flex: 1,
+          flexDirection: "row",
+          alignItems: "flex-start",
           gap: 10,
         },
         dotCol: {
@@ -92,39 +127,54 @@ function NotificationRow({ item, onPress }: NotificationRowProps) {
         time: {
           marginTop: 2,
         },
+        moreBtn: {
+          padding: 8,
+          marginTop: 10,
+        },
       }),
     [c],
   );
 
   return (
-    <Pressable
-      style={styles.row}
-      onPress={() => onPress(item)}
-    >
-      <View style={styles.dotCol}>
-        {isUnread ? <View style={styles.unreadDot} /> : null}
-      </View>
-      <Image
-        source={{ uri: item.targetItem.imageUrl }}
-        style={styles.thumb}
-        contentFit="cover"
+    <View style={styles.row}>
+      <Pressable style={styles.mainPress} onPress={() => onPress(item)}>
+        <View style={styles.dotCol}>
+          {isUnread ? <View style={styles.unreadDot} /> : null}
+        </View>
+        <Image
+          source={{ uri: item.targetItem.imageUrl }}
+          style={styles.thumb}
+          contentFit="cover"
+        />
+        <View style={styles.body}>
+          <ThemedText type="body" style={styles.titleLine}>
+            {notificationMessage(item, t)}
+          </ThemedText>
+          <ThemedText
+            type="bodyMuted"
+            style={styles.quoteTitle}
+            numberOfLines={2}
+          >
+            「{item.targetItem.title}」
+          </ThemedText>
+          <ThemedText type="caption" style={styles.time}>
+            {formatNotificationTime(item.createdAt, locale)}
+          </ThemedText>
+        </View>
+      </Pressable>
+      <Pressable
+        style={styles.moreBtn}
+        onPress={() => setMoreMenuVisible(true)}
+        hitSlop={12}
+      >
+        <IconSymbol name="ellipsis" size={22} color={c.textMuted} />
+      </Pressable>
+      <BottomActionSheet
+        visible={moreMenuVisible}
+        onClose={() => setMoreMenuVisible(false)}
+        actions={moreMenuActions}
       />
-      <View style={styles.body}>
-        <ThemedText type="body" style={styles.titleLine}>
-          {notificationMessage(item, t)}
-        </ThemedText>
-        <ThemedText
-          type="bodyMuted"
-          style={styles.quoteTitle}
-          numberOfLines={2}
-        >
-          「{item.targetItem.title}」
-        </ThemedText>
-        <ThemedText type="caption" style={styles.time}>
-          {formatNotificationTime(item.createdAt, locale)}
-        </ThemedText>
-      </View>
-    </Pressable>
+    </View>
   );
 }
 

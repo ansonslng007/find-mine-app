@@ -1,7 +1,10 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/providers/i18n-provider";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
+  Animated,
+  Dimensions,
+  Easing,
   Modal,
   Pressable,
   StyleSheet,
@@ -27,6 +30,7 @@ type BottomActionSheetProps = Readonly<{
 
 const SHEET_RADIUS = 14;
 const SHEET_GAP = 8;
+const SHEET_ANIM_MS = 280;
 
 export function BottomActionSheet({
   visible,
@@ -107,6 +111,28 @@ export function BottomActionSheet({
 
   const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
 
+  const sheetTranslateY = useRef(
+    new Animated.Value(Dimensions.get("window").height),
+  ).current;
+
+  useEffect(() => {
+    const windowH = Dimensions.get("window").height;
+    if (!visible) {
+      sheetTranslateY.setValue(windowH);
+      return;
+    }
+    sheetTranslateY.setValue(windowH);
+    const id = requestAnimationFrame(() => {
+      Animated.timing(sheetTranslateY, {
+        toValue: 0,
+        duration: SHEET_ANIM_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [visible, sheetTranslateY]);
+
   const handleActionPress = (action: BottomActionSheetItem) => {
     if (action.disabled) {
       return;
@@ -119,12 +145,14 @@ export function BottomActionSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={styles.sheet}>
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}
+        >
           {actions.length > 0 ? (
             <View style={styles.group}>
               {actions.map((action, index) => (
@@ -169,7 +197,7 @@ export function BottomActionSheet({
               {resolvedCancelLabel}
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
