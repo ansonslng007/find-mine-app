@@ -1,3 +1,4 @@
+import type { LocationPickChange } from "@/components/location/location-pick-field";
 import {
   itemMatchesOccurredRange,
   itemMatchesSearchGeo,
@@ -5,12 +6,12 @@ import {
   type TranslateFn,
 } from "@/components/lost-items/format";
 import { LostItemCard } from "@/components/lost-items/lost-item-card";
-import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
+import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
+import type { MapPickLocationModalProps } from "@/components/modal/map-pick-location-modal";
 import {
   SearchByImageSheet,
   type SheetStatusKind,
 } from "@/components/modal/search-by-image-sheet";
-import { SearchFilterRow } from "@/components/lost-items/search-filter-row";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/items";
@@ -24,7 +25,6 @@ import { ApiError } from "@/lib/api/client";
 import type { Item, ItemKind } from "@/lib/api/items";
 import { searchByText } from "@/lib/api/items";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
-import type { LocationPickChange } from "@/components/location/location-pick-field";
 import { useI18n } from "@/providers/i18n-provider";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -50,6 +50,22 @@ type ItemsSearchGeo = Readonly<{
   label: string;
   radiusMeters: SearchRadiusMetersChoice;
 }>;
+
+type SearchFiltersState = Readonly<{
+  category: LostItemCategoryId;
+  occurredFrom: Date | null;
+  occurredTo: Date | null;
+  searchGeo: ItemsSearchGeo | null;
+}>;
+
+function emptySearchFilters(): SearchFiltersState {
+  return {
+    category: "all",
+    occurredFrom: null,
+    occurredTo: null,
+    searchGeo: null,
+  };
+}
 
 type ItemsHomeProps = Readonly<{
   kind: ItemKind;
@@ -234,17 +250,19 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
   const { t, locale } = useI18n();
   const homeT = (key: string) => t(`${scope}.${key}`);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<LostItemCategoryId>("all");
-  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [appliedFilters, setAppliedFilters] =
+    useState<SearchFiltersState>(emptySearchFilters);
+  const [filterDraft, setFilterDraft] =
+    useState<SearchFiltersState>(emptySearchFilters);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [busyKind, setBusyKind] = useState<"idle" | "search">("idle");
   const [imageSearchError, setImageSearchError] = useState<string | null>(null);
   const [textResults, setTextResults] = useState<Item[] | null>(null);
   const [textSearchLoading, setTextSearchLoading] = useState(false);
-  const [occurredFrom, setOccurredFrom] = useState<Date | null>(null);
-  const [occurredTo, setOccurredTo] = useState<Date | null>(null);
-  const [searchGeo, setSearchGeo] = useState<ItemsSearchGeo | null>(null);
   const [mapSearchGeoVisible, setMapSearchGeoVisible] = useState(false);
+
+  const { category, occurredFrom, occurredTo, searchGeo } = appliedFilters;
 
   const formatNominatimAddress = useCallback(
     (address: unknown, name: string, lat: number, lng: number) =>
@@ -263,6 +281,48 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     () => (occurredTo ? occurredTo.toISOString() : undefined),
     [occurredTo],
   );
+
+  const mapPickModal = useMemo((): MapPickLocationModalProps => {
+    const center =
+      filterDraft.searchGeo != null
+        ? { lat: filterDraft.searchGeo.lat, lng: filterDraft.searchGeo.lng }
+        : null;
+    return {
+      visible: mapSearchGeoVisible,
+      onClose: () => setMapSearchGeoVisible(false),
+      onConfirm: (p) => {
+        setFilterDraft((prev) => ({
+          ...prev,
+          searchGeo: {
+            lat: p.lat,
+            lng: p.lng,
+            label: p.addressLabel,
+            radiusMeters:
+              prev.searchGeo?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
+          },
+        }));
+        setMapSearchGeoVisible(false);
+      },
+      initialCenter: center,
+      formatAddressFromNominatim: formatNominatimAddress,
+      title: t("form.mapPickTitle"),
+      confirmLabel: t("form.mapPickConfirm"),
+      addressLoadingLabel: t("form.mapPickAddressLoading"),
+      addressAnalyzingLabel: t("form.mapPickAddressAnalyzing"),
+      reverseFailLabel: t("form.mapPickReverseFail"),
+      dragHint: t("form.mapPickDragHint"),
+      pinHint: t("form.mapPickPinHint"),
+      permissionDeniedTitle: t("form.permLocationTitle"),
+      permissionDeniedBody: t("form.permLocationBody"),
+      locationFailedTitle: t("form.locationFailedTitle"),
+      locationFailedBody: t("form.locationFailedBody"),
+    };
+  }, [
+    mapSearchGeoVisible,
+    filterDraft.searchGeo,
+    formatNominatimAddress,
+    t,
+  ]);
 
   const hasValidSearchGeoParams =
     searchGeo != null &&
@@ -603,23 +663,57 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     setQuery(q);
   };
 
-  const handleSearchLocationChange = useCallback((value: LocationPickChange) => {
-    setSearchGeo((prev) => ({
-      lat: value.lat,
-      lng: value.lng,
-      label: value.label,
-      radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
-    }));
-  }, []);
+  const hasActiveFilter =
+    appliedFilters.category !== "all" ||
+    appliedFilters.occurredFrom != null ||
+    appliedFilters.occurredTo != null ||
+    appliedFilters.searchGeo != null;
+
+  const openFilterModal = () => {
+    setFilterDraft(appliedFilters);
+    setFilterModalVisible(true);
+  };
+
+  const closeFilterModal = () => {
+    setFilterModalVisible(false);
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters(filterDraft);
+    setFilterModalVisible(false);
+  };
+
+  const resetFilterDraft = () => {
+    setFilterDraft(emptySearchFilters());
+  };
+
+  const handleSearchLocationChange = useCallback(
+    (value: LocationPickChange) => {
+      setFilterDraft((prev) => ({
+        ...prev,
+        searchGeo: {
+          lat: value.lat,
+          lng: value.lng,
+          label: value.label,
+          radiusMeters:
+            prev.searchGeo?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
+        },
+      }));
+    },
+    [],
+  );
 
   const handleChangeSearchRadiusMeters = (meters: number) => {
-    setSearchGeo((prev) => {
-      if (prev == null) {
+    setFilterDraft((prev) => {
+      if (prev.searchGeo == null) {
         return prev;
       }
       return {
         ...prev,
-        radiusMeters: meters as SearchRadiusMetersChoice,
+        searchGeo: {
+          ...prev.searchGeo,
+          radiusMeters: meters as SearchRadiusMetersChoice,
+        },
       };
     });
   };
@@ -660,52 +754,40 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         query={query}
         onQueryChange={handleQueryChange}
         onPressSearchByImage={openSearchSheet}
-        isFilterExpanded={isFilterExpanded}
-        onToggleFilterExpanded={() => setIsFilterExpanded((prev) => !prev)}
+        hasActiveFilter={hasActiveFilter}
+        filterModalVisible={filterModalVisible}
+        onOpenFilterModal={openFilterModal}
+        onCloseFilterModal={closeFilterModal}
+        onApplyFilter={applyFilters}
+        onResetFilterDraft={resetFilterDraft}
         scope={scope}
-        occurredFrom={occurredFrom}
-        occurredTo={occurredTo}
-        onChangeOccurredFrom={setOccurredFrom}
-        onChangeOccurredTo={setOccurredTo}
-        onClearOccurredRange={() => {
-          setOccurredFrom(null);
-          setOccurredTo(null);
-        }}
-        searchGeo={searchGeo}
+        category={filterDraft.category}
+        onCategoryChange={(id) =>
+          setFilterDraft((prev) => ({ ...prev, category: id }))
+        }
+        occurredFrom={filterDraft.occurredFrom}
+        occurredTo={filterDraft.occurredTo}
+        onChangeOccurredFrom={(d) =>
+          setFilterDraft((prev) => ({ ...prev, occurredFrom: d }))
+        }
+        onChangeOccurredTo={(d) =>
+          setFilterDraft((prev) => ({ ...prev, occurredTo: d }))
+        }
+        onClearOccurredRange={() =>
+          setFilterDraft((prev) => ({
+            ...prev,
+            occurredFrom: null,
+            occurredTo: null,
+          }))
+        }
+        searchGeo={filterDraft.searchGeo}
         onPressPickSearchCenterMap={() => setMapSearchGeoVisible(true)}
         onSearchLocationChange={handleSearchLocationChange}
         onChangeSearchRadiusMeters={handleChangeSearchRadiusMeters}
-        onClearSearchGeo={() => setSearchGeo(null)}
-        category={category}
-        onCategoryChange={setCategory}
-      />
-      <MapPickLocationModal
-        visible={mapSearchGeoVisible}
-        onClose={() => setMapSearchGeoVisible(false)}
-        onConfirm={(p) => {
-          setSearchGeo((prev) => ({
-            lat: p.lat,
-            lng: p.lng,
-            label: p.addressLabel,
-            radiusMeters: prev?.radiusMeters ?? DEFAULT_SEARCH_RADIUS_METERS,
-          }));
-          setMapSearchGeoVisible(false);
-        }}
-        initialCenter={
-          searchGeo != null ? { lat: searchGeo.lat, lng: searchGeo.lng } : null
+        onClearSearchGeo={() =>
+          setFilterDraft((prev) => ({ ...prev, searchGeo: null }))
         }
-        formatAddressFromNominatim={formatNominatimAddress}
-        title={t("form.mapPickTitle")}
-        confirmLabel={t("form.mapPickConfirm")}
-        addressLoadingLabel={t("form.mapPickAddressLoading")}
-        addressAnalyzingLabel={t("form.mapPickAddressAnalyzing")}
-        reverseFailLabel={t("form.mapPickReverseFail")}
-        dragHint={t("form.mapPickDragHint")}
-        pinHint={t("form.mapPickPinHint")}
-        permissionDeniedTitle={t("form.permLocationTitle")}
-        permissionDeniedBody={t("form.permLocationBody")}
-        locationFailedTitle={t("form.locationFailedTitle")}
-        locationFailedBody={t("form.locationFailedBody")}
+        mapPickModal={mapPickModal}
       />
       <SearchByImageSheet
         visible={isSheetOpen}

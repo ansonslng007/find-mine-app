@@ -2,6 +2,7 @@ export const en = {
   common: {
     retry: "Retry",
     cancel: "Cancel",
+    apply: "Apply",
     notProvided: "Not provided",
     noDescription: "(No description)",
     unknownLocation: "Location not set",
@@ -62,6 +63,8 @@ export const en = {
     searchGeoRadius5km: "5 km",
     searchGeoRadius10km: "10 km",
     searchGeoGpsLabel: "Current location (GPS)",
+    filterTitle: "Filters",
+    filterReset: "Reset",
   },
   foundHome: {
     title: "Found items",
@@ -101,6 +104,8 @@ export const en = {
     searchGeoRadius5km: "5 km",
     searchGeoRadius10km: "10 km",
     searchGeoGpsLabel: "Current location (GPS)",
+    filterTitle: "Filters",
+    filterReset: "Reset",
   },
   search: {
     filterTitle: "Filters",
@@ -395,6 +400,8 @@ export const en = {
     close: "Close",
     description: "Description",
     reward: "Reward",
+    occurredAtLost: "Lost on",
+    occurredAtFound: "Found on",
     locationSection: "Location",
     contactPoster: "Message poster",
     openSourcePost: "View group post",

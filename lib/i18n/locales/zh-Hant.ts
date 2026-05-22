@@ -2,6 +2,7 @@ export const zhHant = {
   common: {
     retry: "重試",
     cancel: "取消",
+    apply: "套用",
     notProvided: "未填",
     noDescription: "（無描述）",
     unknownLocation: "未填地點",
@@ -61,6 +62,8 @@ export const zhHant = {
     searchGeoRadius5km: "5 公里",
     searchGeoRadius10km: "10 公里",
     searchGeoGpsLabel: "目前位置（GPS）",
+    filterTitle: "篩選",
+    filterReset: "重設",
   },
   foundHome: {
     title: "尋獲",
@@ -99,6 +102,8 @@ export const zhHant = {
     searchGeoRadius5km: "5 公里",
     searchGeoRadius10km: "10 公里",
     searchGeoGpsLabel: "目前位置（GPS）",
+    filterTitle: "篩選",
+    filterReset: "重設",
   },
   search: {
     filterTitle: "篩選",
@@ -378,6 +383,8 @@ export const zhHant = {
     close: "關閉",
     description: "描述",
     reward: "報酬",
+    occurredAtLost: "遺失時間",
+    occurredAtFound: "尋獲時間",
     locationSection: "地點",
     contactPoster: "聯絡發佈者",
     openSourcePost: "查看社團貼文",
