@@ -74,7 +74,7 @@ const MAP_DARK_STYLE = [
   },
 ];
 
-type Props = Readonly<{
+export type MapPickLocationModalProps = Readonly<{
   visible: boolean;
   onClose: () => void;
   onConfirm: (payload: {
@@ -121,7 +121,7 @@ export function MapPickLocationModal({
   permissionDeniedBody,
   locationFailedTitle,
   locationFailedBody,
-}: Props) {
+}: MapPickLocationModalProps) {
   const c = useAppColors();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView | null>(null);
@@ -587,7 +587,12 @@ export function MapPickLocationModal({
   const canConfirm = !!addressLabel && !reverseLoading && !mapMoving;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
       <View style={styles.root}>
         <MapView
           ref={mapRef}
