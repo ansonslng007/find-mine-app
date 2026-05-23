@@ -1,4 +1,5 @@
-import { apiClient } from "./client";
+import { apiClient, apiMultipartRequest } from "./client";
+import { prepareImageForUpload } from "@/lib/image/prepare-upload-image";
 
 export type ItemKind = "lost" | "found";
 
@@ -226,18 +227,27 @@ export type SearchByImageResponse = {
   maxDistance: number;
 };
 
+async function appendPreparedImagePart(
+  form: FormData,
+  uri: string,
+  mime: string,
+): Promise<void> {
+  const prepared = await prepareImageForUpload(uri, mime);
+  form.append(
+    "image",
+    {
+      uri: prepared.uri,
+      name: prepared.name,
+      type: prepared.mime,
+    } as any,
+  );
+}
+
 export async function searchByImage(
   params: SearchByImageParams,
 ): Promise<SearchByImageResponse> {
   const form = new FormData();
-  form.append(
-    "image",
-    {
-      uri: params.uri,
-      name: imageMimeToUploadName(params.mime),
-      type: params.mime || "image/jpeg",
-    } as any,
-  );
+  await appendPreparedImagePart(form, params.uri, params.mime);
   if (params.kind != null) {
     form.append("kind", params.kind);
   }
@@ -262,11 +272,10 @@ export async function searchByImage(
   if (params.radiusMeters != null) {
     form.append("radiusMeters", String(params.radiusMeters));
   }
-  const { data } = await apiClient.post<SearchByImageResponse>(
+  return apiMultipartRequest<SearchByImageResponse>(
     "/api/v1/items/search-by-image",
     form,
   );
-  return data;
 }
 
 export type AnalyzeItemImageResponse = {
@@ -280,26 +289,12 @@ export async function analyzeItemImage(input: {
   mime: string;
 }): Promise<AnalyzeItemImageResponse> {
   const form = new FormData();
-  form.append(
-    "image",
-    {
-      uri: input.uri,
-      name: imageMimeToUploadName(input.mime),
-      type: input.mime || "image/jpeg",
-    } as any,
-  );
-  const { data } = await apiClient.post<AnalyzeItemImageResponse>(
+  await appendPreparedImagePart(form, input.uri, input.mime);
+  return apiMultipartRequest<AnalyzeItemImageResponse>(
     "/api/v1/items/analyze-image",
     form,
+    { timeoutMs: 120_000 },
   );
-  return data;
-}
-
-function imageMimeToUploadName(mime: string): string {
-  const m = mime.toLowerCase();
-  if (m.includes("png")) return "upload.png";
-  if (m.includes("webp")) return "upload.webp";
-  return "upload.jpg";
 }
 
 export async function createItem(
@@ -307,19 +302,10 @@ export async function createItem(
 ): Promise<CreateItemResponse> {
   const form = new FormData();
   appendItemFieldsToForm(form, input);
-  form.append(
-    "image",
-    {
-      uri: input.image.uri,
-      name: input.image.name,
-      type: input.image.type,
-    } as any,
-  );
-  const { data } = await apiClient.post<CreateItemResponse>(
-    "/api/v1/items",
-    form,
-  );
-  return data;
+  await appendPreparedImagePart(form, input.image.uri, input.image.type);
+  return apiMultipartRequest<CreateItemResponse>("/api/v1/items", form, {
+    timeoutMs: 120_000,
+  });
 }
 
 function appendItemFieldsToForm(
@@ -362,20 +348,13 @@ export async function updateItem(
   const form = new FormData();
   appendItemFieldsToForm(form, input);
   if (input.image != null) {
-    form.append(
-      "image",
-      {
-        uri: input.image.uri,
-        name: input.image.name,
-        type: input.image.type,
-      } as any,
-    );
+    await appendPreparedImagePart(form, input.image.uri, input.image.type);
   }
-  const { data } = await apiClient.patch<UpdateItemResponse>(
+  return apiMultipartRequest<UpdateItemResponse>(
     `/api/v1/items/${input.itemId}`,
     form,
+    { method: "PATCH", timeoutMs: 120_000 },
   );
-  return data;
 }
 
 export async function deleteItem(itemId: string): Promise<void> {

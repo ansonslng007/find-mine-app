@@ -40,6 +40,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NotificationBellButton } from "@/components/notifications/notification-bell-button";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 type HomeScope = "lostHome" | "foundHome";
@@ -749,6 +750,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       icon="shippingbox.fill"
       iconBackgroundColor={kind === "lost" ? c.badgeLost : c.badgeFound}
       useScrollView={false}
+      headerRight={<NotificationBellButton />}
     >
       <SearchFilterRow
         query={query}

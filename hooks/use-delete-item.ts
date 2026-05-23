@@ -11,6 +11,8 @@ export function useDeleteItem() {
       queryClient.invalidateQueries({
         queryKey: ["items", "detail", itemId],
       });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["conversation"] });
     },
   });
 }

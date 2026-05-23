@@ -405,8 +405,8 @@ export default function ChatConversationScreen() {
         })
       : null;
   const item = conversation.item;
-  const isLost = item.kind === "lost";
-  const itemDescription = item.description?.trim() ?? "";
+  const isLost = item?.kind === "lost";
+  const itemDescription = item?.description?.trim() ?? "";
 
   return (
     <KeyboardAvoidingView
@@ -437,43 +437,62 @@ export default function ChatConversationScreen() {
         </View>
       </View>
 
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: ROUTE_PATH.ITEM,
-            params: { id: item.id },
-          })
-        }
-        style={styles.itemStrip}
-      >
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.itemThumb}
-          contentFit="cover"
-        />
-        <View style={styles.itemMid}>
-          <View style={styles.itemTitleRow}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: isLost ? c.badgeLost : c.badgeFound },
-              ]}
-            >
-              <ThemedText type="default" style={styles.badgeText}>
-                {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+      {item ? (
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: ROUTE_PATH.ITEM,
+              params: { id: item.id },
+            })
+          }
+          style={styles.itemStrip}
+        >
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.itemThumb}
+            contentFit="cover"
+          />
+          <View style={styles.itemMid}>
+            <View style={styles.itemTitleRow}>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: isLost ? c.badgeLost : c.badgeFound },
+                ]}
+              >
+                <ThemedText type="default" style={styles.badgeText}>
+                  {isLost ? t("card.badgeLost") : t("card.badgeFound")}
+                </ThemedText>
+              </View>
+              <ThemedText type="default" style={styles.itemTitle} numberOfLines={1}>
+                {item.title}
               </ThemedText>
             </View>
+            {itemDescription.length > 0 ? (
+              <ThemedText type="default" style={styles.itemDescription} numberOfLines={1}>
+                {itemDescription}
+              </ThemedText>
+            ) : null}
+          </View>
+        </Pressable>
+      ) : (
+        <View style={styles.itemStrip}>
+          <View
+            style={[
+              styles.itemThumb,
+              { backgroundColor: c.imagePlaceholder },
+            ]}
+          />
+          <View style={styles.itemMid}>
             <ThemedText type="default" style={styles.itemTitle} numberOfLines={1}>
-              {item.title}
+              {t("chat.itemDeleted")}
+            </ThemedText>
+            <ThemedText type="default" style={styles.itemDescription} numberOfLines={2}>
+              {t("chat.itemDeletedHint")}
             </ThemedText>
           </View>
-          {itemDescription.length > 0 ? (
-            <ThemedText type="default" style={styles.itemDescription} numberOfLines={1}>
-              {itemDescription}
-            </ThemedText>
-          ) : null}
         </View>
-      </Pressable>
+      )}
 
       <FlatList
         style={{ flex: 1 }}
