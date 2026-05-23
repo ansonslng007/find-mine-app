@@ -64,7 +64,7 @@ type FabUploadSheetProviderProps = Readonly<{
 export function FabUploadSheetProvider({
   children,
 }: FabUploadSheetProviderProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [busyPhase, setBusyPhase] = useState<BusyPhase>("idle");
@@ -92,7 +92,7 @@ export function FabUploadSheetProvider({
     setErrorMessage(null);
     setBusyPhase("analyze");
     try {
-      const analysis = await analyzeItemImage({ uri, mime });
+      const analysis = await analyzeItemImage({ uri, mime, locale });
       setPendingDraft({
         imageUri: uri,
         imageMime: mime,

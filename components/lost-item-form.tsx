@@ -153,6 +153,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
   const [backendFillSnapshot, setBackendFillSnapshot] = useState<{
     category: string;
     description: string;
+    title?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -212,13 +213,18 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setBackendFillSnapshot({
       category: d.category,
       description: d.description,
+      ...(d.title?.trim() ? { title: d.title.trim() } : {}),
     });
     consumeDraft();
   }, [pendingDraft, consumeDraft, t]);
 
   const handleClearBackendFill = () => {
+    const snap = backendFillSnapshot;
     setCategory("");
     setDescription("");
+    if (snap?.title != null && title.trim() === snap.title) {
+      setTitle("");
+    }
     setObjectHint(t("form.categoryHintDefault"));
     setBackendFillSnapshot(null);
   };
@@ -339,7 +345,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setSubmitMessage("");
     setSubmitError("");
     try {
-      const analysis = await analyzeItemImage({ uri, mime });
+      const analysis = await analyzeItemImage({ uri, mime, locale });
       setCategory(analysis.category);
       setDescription(analysis.description);
       if (analysis.title?.trim()) {
@@ -349,6 +355,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
       setBackendFillSnapshot({
         category: analysis.category,
         description: analysis.description,
+        ...(analysis.title?.trim() ? { title: analysis.title.trim() } : {}),
       });
     } catch (error) {
       console.error("analyzeItemImage error", error);
@@ -716,13 +723,6 @@ export function LostItemForm(props: LostItemFormProps = {}) {
           addressLabel={location}
           onLocationChange={handleLocationPickChange}
           onPressPickOnMap={() => setMapPickVisible(true)}
-          showSelectedInfo
-          selectedPrefix={t("form.selectedPrefix")}
-          coordsLine={(lat, lng) =>
-            t("form.coordsLine", { lat: lat.toFixed(6), lng: lng.toFixed(6) })
-          }
-          lat={placeGeometry?.location.lat}
-          lng={placeGeometry?.location.lng}
         />
       </View>
 
@@ -913,6 +913,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
           setMapPickVisible(false);
         }}
         initialCenter={placeGeometry?.location ?? null}
+        locale={locale}
         formatAddressFromNominatim={generateReadableAddressFromNominatim}
         title={t("form.mapPickTitle")}
         confirmLabel={t("form.mapPickConfirm")}

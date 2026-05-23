@@ -305,6 +305,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         setMapSearchGeoVisible(false);
       },
       initialCenter: center,
+      locale,
       formatAddressFromNominatim: formatNominatimAddress,
       title: t("form.mapPickTitle"),
       confirmLabel: t("form.mapPickConfirm"),
@@ -322,6 +323,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     mapSearchGeoVisible,
     filterDraft.searchGeo,
     formatNominatimAddress,
+    locale,
     t,
   ]);
 

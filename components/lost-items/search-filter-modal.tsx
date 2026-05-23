@@ -143,8 +143,6 @@ function SearchGeoSection({
         addressLabel={searchGeo.label}
         onLocationChange={onSearchLocationChange}
         onPressPickOnMap={onPressPickSearchCenterMap}
-        lat={searchGeo.lat}
-        lng={searchGeo.lng}
       />
       <ThemedText type="defaultSemiBold" style={{ color: textPrimary }}>
         {screenT("searchGeoRadius")}

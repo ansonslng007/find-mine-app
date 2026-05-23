@@ -1,5 +1,6 @@
-import { apiClient, apiMultipartRequest } from "./client";
+import type { AppLocale } from "@/lib/i18n/types";
 import { prepareImageForUpload } from "@/lib/image/prepare-upload-image";
+import { apiClient, apiMultipartRequest } from "./client";
 
 export type ItemKind = "lost" | "found";
 
@@ -287,9 +288,11 @@ export type AnalyzeItemImageResponse = {
 export async function analyzeItemImage(input: {
   uri: string;
   mime: string;
+  locale: AppLocale;
 }): Promise<AnalyzeItemImageResponse> {
   const form = new FormData();
   await appendPreparedImagePart(form, input.uri, input.mime);
+  form.append("locale", input.locale);
   return apiMultipartRequest<AnalyzeItemImageResponse>(
     "/api/v1/items/analyze-image",
     form,
