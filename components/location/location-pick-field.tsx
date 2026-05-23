@@ -1,4 +1,3 @@
-import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { nominatimReverse } from "@/lib/nominatim";
@@ -33,11 +32,6 @@ type Props = Readonly<{
   pickOnMapLabel?: string;
   useGpsLabel?: string;
   placesPlaceholder?: string;
-  showSelectedInfo?: boolean;
-  selectedPrefix?: string;
-  coordsLine?: (lat: number, lng: number) => string;
-  lat?: number;
-  lng?: number;
 }>;
 
 export function LocationPickField({
@@ -47,11 +41,6 @@ export function LocationPickField({
   pickOnMapLabel,
   useGpsLabel,
   placesPlaceholder,
-  showSelectedInfo = false,
-  selectedPrefix,
-  coordsLine,
-  lat,
-  lng,
 }: Props) {
   const c = useAppColors();
   const { t, locale } = useI18n();
@@ -88,7 +77,7 @@ export function LocationPickField({
       const { latitude, longitude } = locationResult.coords;
 
       try {
-        const data = await nominatimReverse(latitude, longitude);
+        const data = await nominatimReverse(latitude, longitude, { locale });
         if (data?.address) {
           const readableAddress = buildReadableAddressFromNominatim(
             data.address,
@@ -146,9 +135,6 @@ export function LocationPickField({
     }
   };
 
-  const hasCoords =
-    lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
-
   return (
     <View style={styles.root}>
       <View style={styles.buttonsRow}>
@@ -199,24 +185,6 @@ export function LocationPickField({
           }}
         />
       </View>
-
-      {showSelectedInfo && addressLabel ? (
-        <View
-          style={[styles.locationInfo, { backgroundColor: c.chipBackground }]}
-        >
-          <ThemedText style={[styles.locationInfoText, { color: c.textPrimary }]}>
-            {selectedPrefix}
-            {addressLabel}
-          </ThemedText>
-          {hasCoords && coordsLine ? (
-            <ThemedText
-              style={[styles.locationGeometryText, { color: c.textMuted }]}
-            >
-              {coordsLine(lat as number, lng as number)}
-            </ThemedText>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -247,20 +215,6 @@ function createStyles(c: ReturnType<typeof useAppColors>) {
     autocompleteContainer: {
       zIndex: 50,
       overflow: "visible",
-    },
-    locationInfo: {
-      marginTop: 4,
-      padding: 12,
-      borderRadius: 12,
-    },
-    locationInfoText: {
-      fontSize: 13,
-      lineHeight: 18,
-    },
-    locationGeometryText: {
-      marginTop: 6,
-      fontSize: 11,
-      lineHeight: 16,
     },
   });
 }

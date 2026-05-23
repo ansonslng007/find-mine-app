@@ -318,8 +318,6 @@ export const zhHant = {
     mapPickReverseFail: "暫時無法取得地址，仍可送出座標。",
     mapPickDragHint: "拖曳地圖，讓箭頭對準實際位置；右上角可跳到目前定位。",
     mapPickPinHint: "請拖曳地圖移動，對準下方箭頭後即會顯示地址。",
-    selectedPrefix: "已選擇：",
-    coordsLine: "座標：緯度 %{lat}、經度 %{lng}",
     categoryLabel: "類別",
     categoryPlaceholder: "上傳圖片後會自動填入，亦可手動修改",
     notesLabel: "補充說明",

@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import type { AppLocale } from "@/lib/i18n/types";
 import { nominatimReverse } from "@/lib/nominatim";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -84,6 +85,7 @@ export type MapPickLocationModalProps = Readonly<{
   }) => void;
   /** When set, map opens centered here; otherwise Hong Kong + optional GPS. */
   initialCenter?: { lat: number; lng: number } | null;
+  locale: AppLocale;
   formatAddressFromNominatim: (
     address: unknown,
     name: string,
@@ -109,6 +111,7 @@ export function MapPickLocationModal({
   onClose,
   onConfirm,
   initialCenter,
+  locale,
   formatAddressFromNominatim,
   title,
   confirmLabel,
@@ -173,10 +176,10 @@ export function MapPickLocationModal({
       setAddressLabel("");
       setReverseLoading(true);
       try {
-        const data = (await nominatimReverse(lat, lng, ac.signal)) as {
-          address?: unknown;
-          name?: string;
-        };
+        const data = await nominatimReverse(lat, lng, {
+          signal: ac.signal,
+          locale,
+        });
         if (data?.address) {
           const line = formatAddressFromNominatim(
             data.address,
@@ -196,7 +199,7 @@ export function MapPickLocationModal({
         setReverseLoading(false);
       }
     },
-    [formatAddressFromNominatim, reverseFailLabel],
+    [formatAddressFromNominatim, locale, reverseFailLabel],
   );
 
   const scheduleReverse = useCallback(

@@ -334,8 +334,6 @@ export const en = {
       "Drag the map so the pin points at the spot. Top-right jumps to your current location.",
     mapPickPinHint:
       "Drag the map to move the target. The address appears after you adjust the pin.",
-    selectedPrefix: "Selected:",
-    coordsLine: "Coordinates — lat %{lat}, lng %{lng}",
     categoryLabel: "Category",
     categoryPlaceholder: "Filled after upload; you can edit it",
     notesLabel: "Notes",
