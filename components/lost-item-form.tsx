@@ -506,11 +506,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
         },
         {
           onSuccess: () => {
-            setSubmitMessage(t("edit.success"));
-            router.replace({
-              pathname: "/item/[id]",
-              params: { id: props.itemId },
-            });
+            router.back();
           },
           onError: onMutationError,
         },
