@@ -28,6 +28,7 @@ export type LocationPickChange = Readonly<{
 type Props = Readonly<{
   addressLabel: string;
   onLocationChange: (value: LocationPickChange) => void;
+  onAddressTextChange?: (text: string) => void;
   onPressPickOnMap: () => void;
   pickOnMapLabel?: string;
   useGpsLabel?: string;
@@ -37,6 +38,7 @@ type Props = Readonly<{
 export function LocationPickField({
   addressLabel,
   onLocationChange,
+  onAddressTextChange,
   onPressPickOnMap,
   pickOnMapLabel,
   useGpsLabel,
@@ -180,6 +182,7 @@ export function LocationPickField({
           country="hk"
           debounceMs={300}
           onSelect={handlePlacesSelect}
+          onTextChange={onAddressTextChange}
           onFail={(error: unknown) => {
             console.error("Google places autocomplete error:", error);
           }}

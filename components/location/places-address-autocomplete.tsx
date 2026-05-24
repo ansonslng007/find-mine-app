@@ -39,6 +39,7 @@ type Props = Readonly<{
   country?: string;
   debounceMs?: number;
   onSelect: (description: string, details: unknown) => void;
+  onTextChange?: (text: string) => void;
   onFail?: (error: unknown) => void;
   containerStyle?: StyleProp<ViewStyle>;
   inputContainerStyle?: StyleProp<ViewStyle>;
@@ -58,6 +59,7 @@ export const PlacesAddressAutocomplete = forwardRef<
     country = "hk",
     debounceMs = 300,
     onSelect,
+    onTextChange,
     onFail,
     containerStyle,
     inputContainerStyle,
@@ -152,6 +154,7 @@ export const PlacesAddressAutocomplete = forwardRef<
   const handleChangeText = (value: string) => {
     setText(value);
     scheduleAutocomplete(value);
+    onTextChange?.(value);
   };
 
   const handleSelectPrediction = async (item: Prediction) => {

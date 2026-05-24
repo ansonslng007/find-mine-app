@@ -556,6 +556,15 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setPlaceGeometry({ location: { lat: value.lat, lng: value.lng } });
   };
 
+  const handleLocationTextChange = (text: string) => {
+    setLocation(text);
+    if (!text.trim()) {
+      setPlaceGeometry(null);
+      return;
+    }
+    setPlaceGeometry(null);
+  };
+
   const titleLabel =
     kind === "lost" ? t("form.titleLost") : t("form.titleFound");
   const timeLabel = kind === "lost" ? t("form.timeLost") : t("form.timeFound");
@@ -722,6 +731,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
         <LocationPickField
           addressLabel={location}
           onLocationChange={handleLocationPickChange}
+          onAddressTextChange={handleLocationTextChange}
           onPressPickOnMap={() => setMapPickVisible(true)}
         />
       </View>
