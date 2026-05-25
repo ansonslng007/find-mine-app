@@ -73,7 +73,7 @@ export function LocationPickField({
       }
 
       const locationResult = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
       });
 
       const { latitude, longitude } = locationResult.coords;
