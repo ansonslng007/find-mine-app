@@ -339,7 +339,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     ? searchGeo.radiusMeters
     : undefined;
 
-  const { data, isPending, isError, error, refetch, isRefetching } =
+  const { data, isLoading, isError, error, refetch, isRefetching } =
     useItemsList({
       kind,
       occurredAfter: occurredAfterIso,
@@ -530,7 +530,10 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     if (hasImageSearch) {
       return imageItemsFiltered;
     }
-    if (isPending || isError) {
+    if (isLoading) {
+      return [];
+    }
+    if (isError && !data?.items?.length) {
       return [];
     }
     return normalFiltered;
@@ -539,8 +542,9 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     hasImageSearch,
     textItemsFiltered,
     imageItemsFiltered,
-    isPending,
+    isLoading,
     isError,
+    data?.items?.length,
     normalFiltered,
   ]);
 
@@ -558,12 +562,12 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     if (hasTextSearch || hasImageSearch) {
       return listData.length === 0;
     }
-    return isPending || isError || normalFiltered.length === 0;
+    return isLoading || isError || normalFiltered.length === 0;
   }, [
     hasTextSearch,
     hasImageSearch,
     listData.length,
-    isPending,
+    isLoading,
     isError,
     normalFiltered.length,
   ]);
@@ -725,7 +729,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
 
   const listShowsTextSearch = hasTextSearch;
   const listEmptyPending =
-    isPending || (listShowsTextSearch && textSearchLoading);
+    isLoading || (listShowsTextSearch && textSearchLoading);
 
   const listEmpty = (
     <HomeListEmpty
@@ -826,7 +830,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
         ListEmptyComponent={listEmpty}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching && !isPending}
+            refreshing={isRefetching && !isLoading}
             onRefresh={() => refetch()}
             tintColor={c.brand}
           />

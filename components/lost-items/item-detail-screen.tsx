@@ -50,7 +50,7 @@ export function ItemDetailScreen() {
   const c = useAppColors();
   const { t, locale } = useI18n();
   const { data: authUser } = useAuthUser();
-  const { data, isPending, isError, error, refetch } = useItem(id);
+  const { data, isLoading, isError, error, refetch } = useItem(id);
   const deleteItemMutation = useDeleteItem();
   const [contactBusy, setContactBusy] = useState(false);
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
@@ -244,7 +244,7 @@ export function ItemDetailScreen() {
     );
   }
 
-  if (isPending) {
+  if (isLoading) {
     return (
       <View style={[styles.root, styles.center]}>
         <ActivityIndicator size="large" color={c.brand} />
