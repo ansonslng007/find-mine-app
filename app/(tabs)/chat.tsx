@@ -29,7 +29,8 @@ import {
   View,
 } from "react-native";
 import Swipeable from "react-native-gesture-handler/Swipeable";
-import type { Swipeable as SwipeableRef } from "react-native-gesture-handler/Swipeable";
+
+type SwipeableRef = React.ElementRef<typeof Swipeable>;
 
 const CHAT_UNREAD_ACCENT = "#25D366";
 const CHAT_DELETE_ACTION_WIDTH = 80;
@@ -185,6 +186,10 @@ function ConversationRow({
   const itemTitle = entry.item
     ? truncate(entry.item.title, 42)
     : t("chat.itemDeleted");
+  const lastMessagePreview =
+    entry.lastMessage?.type === "voice"
+      ? t("chat.voiceMessageList")
+      : entry.lastMessage?.body ?? t("chat.noMessagesYet");
 
   return (
     <Pressable onPress={onPress} style={styles.row}>
@@ -205,7 +210,7 @@ function ConversationRow({
           {itemTitle}
         </ThemedText>
         <ThemedText type="default" style={styles.sub} numberOfLines={2}>
-          {entry.lastMessage?.body ?? t("chat.noMessagesYet")}
+          {lastMessagePreview}
         </ThemedText>
       </View>
       {timeLabel || hasUnread ? (

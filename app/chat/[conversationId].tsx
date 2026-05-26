@@ -12,6 +12,7 @@ import { CHAT_UNREAD_COUNT_QUERY_KEY } from "@/hooks/use-chat-unread-count";
 import { setActiveConversationId } from "@/lib/chat/active-conversation";
 import type { MessageNewPayload } from "@/lib/chat/message-new-payload";
 import {
+  createVoiceUploadUrl,
   deleteConversation,
   getConversation,
   listMessages,
@@ -22,9 +23,11 @@ import { useI18n } from "@/providers/i18n-provider";
 import { useChatSocket } from "@/providers/chat-socket-provider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import * as FileSystem from "expo-file-system/legacy";
+import { Audio } from "expo-av";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +41,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const MAX_VOICE_DURATION_SECONDS = 60;
+const VOICE_WAVEFORM_BARS = [8, 13, 10, 16, 9, 15, 7, 12, 17, 11, 14, 8];
+
+function formatDurationLabel(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const mm = Math.floor(s / 60)
+    .toString()
+    .padStart(2, "0");
+  const ss = (s % 60).toString().padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
 export default function ChatConversationScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const router = useRouter();
@@ -50,6 +65,22 @@ export default function ChatConversationScreen() {
     useChatSocket();
   const [draft, setDraft] = useState("");
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [voicePlaybackProgress, setVoicePlaybackProgress] = useState(0);
+
+  const setPlaybackAudioMode = useCallback(async () => {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+  }, []);
 
   const convQuery = useQuery({
     queryKey: ["conversation", conversationId],
@@ -127,6 +158,8 @@ export default function ChatConversationScreen() {
                   id: payload.id,
                   senderId: payload.senderId,
                   body: payload.body,
+                  type: payload.type,
+                  voice: payload.voice,
                   createdAt: payload.createdAt,
                 },
               ],
@@ -141,6 +174,8 @@ export default function ChatConversationScreen() {
                 id: payload.id,
                 senderId: payload.senderId,
                 body: payload.body,
+                type: payload.type,
+                voice: payload.voice,
                 createdAt: payload.createdAt,
               },
               ...old.messages,
@@ -156,6 +191,22 @@ export default function ChatConversationScreen() {
     });
   }, [conversationId, qc, subscribeMessageNew, user?.id]);
 
+  useEffect(() => {
+    return () => {
+      const currentRecording = recordingRef.current;
+      if (currentRecording) {
+        void currentRecording.stopAndUnloadAsync().catch(() => undefined);
+        recordingRef.current = null;
+      }
+      const currentSound = soundRef.current;
+      if (currentSound) {
+        void currentSound.unloadAsync().catch(() => undefined);
+        soundRef.current = null;
+        setVoicePlaybackProgress(0);
+      }
+    };
+  }, []);
+
   const sendMessage = useCallback(() => {
     const text = draft.trim();
     if (!text || !conversationId) {
@@ -167,7 +218,7 @@ export default function ChatConversationScreen() {
     }
     socket.emit(
       "message:send",
-      { conversationId, body: text },
+      { type: "text", conversationId, body: text },
       (err?: string) => {
         if (err) {
           Alert.alert(t("chat.title"), t("chat.sendFailed"));
@@ -177,6 +228,249 @@ export default function ChatConversationScreen() {
       },
     );
   }, [conversationId, draft, socket, t]);
+
+  const cancelRecording = useCallback(() => {
+    const recording = recordingRef.current;
+    if (!recording) {
+      return;
+    }
+    void (async () => {
+      try {
+        await recording.stopAndUnloadAsync();
+      } catch {
+        // ignore cancel errors
+      } finally {
+        try {
+          await setPlaybackAudioMode();
+        } catch {
+          // ignore mode switch errors
+        }
+        recordingRef.current = null;
+        setRecordingSeconds(0);
+        setIsRecording(false);
+      }
+    })();
+  }, [setPlaybackAudioMode]);
+
+  const startRecording = useCallback(() => {
+    if (isRecording || isUploadingVoice) {
+      return;
+    }
+    void (async () => {
+      try {
+        const perm = await Audio.requestPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert(t("chat.title"), t("chat.voicePermissionDenied"));
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+        const recording = new Audio.Recording();
+        await recording.prepareToRecordAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        );
+        recording.setOnRecordingStatusUpdate((status) => {
+          if (!status.isRecording) {
+            return;
+          }
+          const seconds = Math.max(
+            0,
+            Math.floor((status.durationMillis ?? 0) / 1000),
+          );
+          setRecordingSeconds(Math.min(seconds, MAX_VOICE_DURATION_SECONDS + 1));
+        });
+        recording.setProgressUpdateInterval(250);
+        await recording.startAsync();
+        recordingRef.current = recording;
+        setRecordingSeconds(0);
+        setIsRecording(true);
+      } catch {
+        recordingRef.current = null;
+        setRecordingSeconds(0);
+        setIsRecording(false);
+        Alert.alert(t("chat.title"), t("chat.voiceRecordStartFailed"));
+      }
+    })();
+  }, [isRecording, isUploadingVoice, t]);
+
+  const stopRecordingAndSend = useCallback(() => {
+    if (isUploadingVoice || !conversationId) {
+      return;
+    }
+    const recording = recordingRef.current;
+    if (!recording) {
+      return;
+    }
+    void (async () => {
+      try {
+        setIsUploadingVoice(true);
+        await recording.stopAndUnloadAsync();
+        await setPlaybackAudioMode();
+        recordingRef.current = null;
+        setIsRecording(false);
+        const uri = recording.getURI();
+        if (!uri) {
+          throw new Error("Missing recorded file uri");
+        }
+
+        const durationSec = Math.max(1, Math.floor(recordingSeconds));
+        if (durationSec > MAX_VOICE_DURATION_SECONDS) {
+          Alert.alert(t("chat.title"), t("chat.voiceMaxDuration"));
+          setRecordingSeconds(0);
+          return;
+        }
+
+        const info = await FileSystem.getInfoAsync(uri);
+        if (!info.exists) {
+          throw new Error("Recorded file missing");
+        }
+        const mimeType = Platform.OS === "web" ? "audio/webm" : "audio/mp4";
+        let webBlob: Blob | null = null;
+        let fileSize =
+          typeof info.size === "number" && info.size > 0 ? info.size : null;
+        if (Platform.OS === "web") {
+          const localFileResp = await fetch(uri);
+          webBlob = await localFileResp.blob();
+          fileSize = webBlob.size;
+        }
+        if (fileSize == null || fileSize <= 0) {
+          throw new Error("Recorded file size missing");
+        }
+
+        const upload = await createVoiceUploadUrl(conversationId, {
+          mimeType,
+          durationSec,
+          fileSize,
+        });
+
+        if (Platform.OS === "web") {
+          const uploadResp = await fetch(upload.uploadUrl, {
+            method: "PUT",
+            headers: {
+              "Content-Type": mimeType,
+            },
+            body: webBlob,
+          });
+          if (!uploadResp.ok) {
+            throw new Error(`Upload failed with status ${uploadResp.status}`);
+          }
+        } else {
+          const uploadResp = await FileSystem.uploadAsync(upload.uploadUrl, uri, {
+            httpMethod: "PUT",
+            headers: {
+              "Content-Type": mimeType,
+            },
+          });
+          if (uploadResp.status < 200 || uploadResp.status >= 300) {
+            throw new Error(`Upload failed with status ${uploadResp.status}`);
+          }
+        }
+
+        if (!socket?.connected) {
+          Alert.alert(t("chat.title"), t("chat.notConnected"));
+          return;
+        }
+        socket.emit(
+          "message:send",
+          {
+            type: "voice",
+            conversationId,
+            voice: {
+              audioUrl: upload.audioUrl,
+              durationSec,
+              mimeType,
+            },
+          },
+          (err?: string) => {
+            if (err) {
+              Alert.alert(t("chat.title"), t("chat.sendFailed"));
+            }
+          },
+        );
+      } catch (err) {
+        console.warn("[chat] voice upload failed", err);
+        const detail =
+          err instanceof Error && err.message ? `\n${err.message}` : "";
+        Alert.alert(t("chat.title"), `${t("chat.voiceUploadFailed")}${detail}`);
+      } finally {
+        setRecordingSeconds(0);
+        setIsRecording(false);
+        setIsUploadingVoice(false);
+      }
+    })();
+  }, [
+    conversationId,
+    isUploadingVoice,
+    recordingSeconds,
+    setPlaybackAudioMode,
+    socket,
+    t,
+  ]);
+
+  const toggleVoicePlayback = useCallback(
+    (messageId: string, audioUrl: string) => {
+      void (async () => {
+        try {
+          await setPlaybackAudioMode();
+          if (playingMessageId === messageId && soundRef.current) {
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+            setPlayingMessageId(null);
+            setVoicePlaybackProgress(0);
+            return;
+          }
+
+          if (soundRef.current) {
+            await soundRef.current.unloadAsync();
+            soundRef.current = null;
+            setPlayingMessageId(null);
+            setVoicePlaybackProgress(0);
+          }
+
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: audioUrl },
+            { shouldPlay: true, volume: 1, isMuted: false },
+            (status) => {
+              if (!status.isLoaded) {
+                return;
+              }
+              if (
+                typeof status.positionMillis === "number" &&
+                typeof status.durationMillis === "number" &&
+                status.durationMillis > 0
+              ) {
+                const progress = Math.min(
+                  1,
+                  Math.max(0, status.positionMillis / status.durationMillis),
+                );
+                setVoicePlaybackProgress(progress);
+              }
+              if (status.didJustFinish) {
+                setPlayingMessageId((prev) =>
+                  prev === messageId ? null : prev,
+                );
+                setVoicePlaybackProgress(0);
+                const s = soundRef.current;
+                if (s) {
+                  void s.unloadAsync().catch(() => undefined);
+                  soundRef.current = null;
+                }
+              }
+            },
+          );
+          soundRef.current = sound;
+          setPlayingMessageId(messageId);
+          setVoicePlaybackProgress(0);
+        } catch {
+          Alert.alert(t("chat.title"), t("chat.voicePlayFailed"));
+        }
+      })();
+    },
+    [playingMessageId, setPlaybackAudioMode, t],
+  );
 
   const confirmDeleteConversation = useCallback(() => {
     if (typeof conversationId !== "string" || conversationId.length === 0) {
@@ -335,6 +629,21 @@ export default function ChatConversationScreen() {
           marginVertical: 4,
           marginHorizontal: 16,
         },
+        voiceBubbleAction: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+        },
+        waveformWrap: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 3,
+          marginHorizontal: 2,
+        },
+        waveformBar: {
+          width: 3,
+          borderRadius: 99,
+        },
         inputRow: {
           flexDirection: "row",
           alignItems: "center",
@@ -346,6 +655,17 @@ export default function ChatConversationScreen() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: c.borderSubtle,
         },
+        recordingPill: {
+          flex: 1,
+          minHeight: 40,
+          borderRadius: 20,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          backgroundColor: c.pageBackground,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+        },
         input: {
           flex: 1,
           minHeight: 40,
@@ -356,6 +676,15 @@ export default function ChatConversationScreen() {
           backgroundColor: c.pageBackground,
           color: c.textPrimary,
           fontSize: 16,
+        },
+        voiceButton: {
+          width: 38,
+          height: 38,
+          borderRadius: 19,
+          alignItems: "center",
+          justifyContent: "center",
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.borderSubtle,
         },
       }),
     [c],
@@ -501,18 +830,77 @@ export default function ChatConversationScreen() {
         keyExtractor={(m) => m.id}
         renderItem={({ item: m }) => {
           const mine = user?.id === m.senderId;
+          const isVoice = m.type === "voice";
+          const audioUrl = m.voice?.audioUrl ?? null;
+          const durationSec = m.voice?.durationSec ?? 0;
+          const canPlayVoice = isVoice && typeof audioUrl === "string" && audioUrl.length > 0;
+          const isThisVoicePlaying = playingMessageId === m.id;
+          const activeWaveBars = Math.round(
+            voicePlaybackProgress * VOICE_WAVEFORM_BARS.length,
+          );
+          const elapsedSeconds = Math.min(
+            durationSec,
+            Math.floor(voicePlaybackProgress * durationSec),
+          );
+          const voiceTimeLabel = isThisVoicePlaying
+            ? formatDurationLabel(elapsedSeconds)
+            : formatDurationLabel(durationSec);
           return (
             <View style={mine ? styles.bubbleOut : styles.bubbleIn}>
-              <ThemedText
-                type="default"
-                style={{
-                  color: mine ? c.onBrand : c.textPrimary,
-                  fontSize: 16,
-                  lineHeight: 22,
-                }}
-              >
-                {m.body}
-              </ThemedText>
+              {isVoice ? (
+                <Pressable
+                  onPress={() =>
+                    canPlayVoice ? toggleVoicePlayback(m.id, audioUrl) : undefined
+                  }
+                  disabled={!canPlayVoice}
+                  style={styles.voiceBubbleAction}
+                >
+                  <IconSymbol
+                    name={isThisVoicePlaying ? "pause.fill" : "play.fill"}
+                    size={20}
+                    color={mine ? c.onBrand : c.textPrimary}
+                  />
+                  <View style={styles.waveformWrap}>
+                    {VOICE_WAVEFORM_BARS.map((height, idx) => (
+                      <View
+                        key={`${m.id}-wave-${idx}`}
+                        style={[
+                          styles.waveformBar,
+                          {
+                            height,
+                            backgroundColor: mine ? c.onBrand : c.textPrimary,
+                            opacity:
+                              isThisVoicePlaying && idx < activeWaveBars
+                                ? 1
+                                : 0.35,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <ThemedText
+                    type="default"
+                    style={{
+                      color: mine ? c.onBrand : c.textPrimary,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {voiceTimeLabel}
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <ThemedText
+                  type="default"
+                  style={{
+                    color: mine ? c.onBrand : c.textPrimary,
+                    fontSize: 16,
+                    lineHeight: 22,
+                  }}
+                >
+                  {m.body}
+                </ThemedText>
+              )}
               <ThemedText
                 type="default"
                 style={{
@@ -535,22 +923,57 @@ export default function ChatConversationScreen() {
       />
 
       <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        <TextInput
-          style={styles.input}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={t("chat.inputPlaceholder")}
-          placeholderTextColor={c.textMuted}
-          multiline
-          maxLength={4000}
-        />
+        {isRecording ? (
+          <View style={styles.recordingPill}>
+            <ThemedText type="default" style={{ color: c.textPrimary, fontWeight: "700" }}>
+              {t("chat.voiceRecording")}
+            </ThemedText>
+            <ThemedText type="default" style={{ color: c.textMuted }}>
+              {formatDurationLabel(recordingSeconds)}
+            </ThemedText>
+            <Pressable onPress={cancelRecording} hitSlop={10}>
+              <ThemedText type="default" style={{ color: c.textMuted, fontWeight: "600" }}>
+                {t("chat.voiceCancel")}
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : (
+          <TextInput
+            style={styles.input}
+            value={draft}
+            onChangeText={setDraft}
+            editable={!isUploadingVoice}
+            placeholder={
+              isUploadingVoice ? t("chat.voiceSending") : t("chat.inputPlaceholder")
+            }
+            placeholderTextColor={c.textMuted}
+            multiline
+            maxLength={4000}
+          />
+        )}
+        <Pressable
+          onPress={isRecording ? stopRecordingAndSend : startRecording}
+          hitSlop={12}
+          disabled={isUploadingVoice}
+          style={[
+            styles.voiceButton,
+            { backgroundColor: isRecording ? c.badgeLost : c.pageBackground },
+          ]}
+        >
+          <IconSymbol
+            name={isRecording ? "stop.fill" : "mic.fill"}
+            size={18}
+            color={isRecording ? "#FFFFFF" : c.textPrimary}
+          />
+        </Pressable>
         <Pressable
           onPress={sendMessage}
+          disabled={isRecording || isUploadingVoice}
           hitSlop={12}
           style={{
             padding: 10,
             borderRadius: 999,
-            backgroundColor: c.brand,
+            backgroundColor: isRecording || isUploadingVoice ? c.textMuted : c.brand,
           }}
         >
           <IconSymbol name="arrow.up.circle.fill" size={28} color={c.onBrand} />
