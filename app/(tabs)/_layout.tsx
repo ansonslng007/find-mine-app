@@ -1,6 +1,5 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { Platform } from "react-native";
 
 import { CenterTabButton } from "@/components/center-tab-button";
 import { HapticTab } from "@/components/haptic-tab";
@@ -33,8 +32,8 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
-          paddingTop: 8,
-          height: Platform.OS === "ios" ? 88 : 72,
+          paddingTop: 4,
+          height: 72,
         },
       }}
     >

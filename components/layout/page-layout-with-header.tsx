@@ -38,7 +38,7 @@ export function PageLayoutWithHeader({
         content: {
           flex: 1,
           paddingHorizontal: 16,
-          paddingVertical: 16,
+          paddingVertical: 0,
         },
         headerOverlay: {
           position: "absolute",
@@ -54,8 +54,8 @@ export function PageLayoutWithHeader({
         },
         nonScrollContent: {
           flex: 1,
-          paddingTop: headerHeight + 8,
-          paddingBottom: 30,
+          paddingTop: headerHeight + 12,
+          // paddingBottom: 30,
         },
       }),
     [c, headerHeight],

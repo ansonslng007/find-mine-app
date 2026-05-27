@@ -12,6 +12,7 @@ import {
   SearchByImageSheet,
   type SheetStatusKind,
 } from "@/components/modal/search-by-image-sheet";
+import { NotificationBellButton } from "@/components/notifications/notification-bell-button";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/items";
@@ -40,7 +41,6 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NotificationBellButton } from "@/components/notifications/notification-bell-button";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 type HomeScope = "lostHome" | "foundHome";
@@ -818,12 +818,13 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       ) : null}
 
       <FlatList
+        style={{ marginTop: 10 }}
         data={listData}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
         contentContainerStyle={[
           pageStyles.listContent,
-          { paddingBottom: insets.bottom + 100 },
+          { paddingBottom: insets.bottom + 16 },
           listShouldGrow && pageStyles.listEmptyGrow,
         ]}
         showsVerticalScrollIndicator={false}

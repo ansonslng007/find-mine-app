@@ -40,12 +40,12 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: Platform.OS === "ios" ? 18 : 12,
+    justifyContent: "center",
+    paddingBottom: Platform.OS === "ios" ? 6 : 4,
   },
   column: {
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   fab: {
     width: 58,
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -28,
+    marginTop: -29,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
