@@ -457,10 +457,30 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     );
   }, [data?.items, category, searchNearLat, searchNearLng, searchRadiusMeters]);
 
+  const similarResults = useMemo(
+    () => searchByImageMutation.data?.results ?? [],
+    [searchByImageMutation.data],
+  );
+
+  /**
+   * Keep image-search results within the same item category as the best match,
+   * so visually similar noise from different categories will not be shown.
+   */
+  const imageSearchMatchedCategory = useMemo(
+    () => similarResults[0]?.item.category ?? null,
+    [similarResults],
+  );
+
   const similarItems = useMemo(
     () =>
-      searchByImageMutation.data?.results.map((result) => result.item) ?? [],
-    [searchByImageMutation.data],
+      similarResults
+        .filter((result) =>
+          imageSearchMatchedCategory == null
+            ? true
+            : result.item.category === imageSearchMatchedCategory,
+        )
+        .map((result) => result.item),
+    [similarResults, imageSearchMatchedCategory],
   );
 
   const hasImageSearch = searchByImageMutation.data != null;

@@ -277,6 +277,7 @@ export const zhHant = {
     cannotSubmitTitle: "無法送出",
     needImage: "請先拍照或從相簿選擇物品圖片。",
     needTitle: "請填寫「標題 / 物品名稱」。",
+    needTime: "請填寫「遺失時間 / 發現時間」。",
     needCategory:
       "請填寫有效類別（可先上傳照片由系統辨識，或手動輸入英文類別代碼）。",
     analyzingPhoto: "正在分析照片…",

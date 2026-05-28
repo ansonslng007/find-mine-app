@@ -288,6 +288,7 @@ export const en = {
     cannotSubmitTitle: "Cannot submit",
     needImage: "Take a photo or pick an image from your library first.",
     needTitle: "Please enter a title / item name.",
+    needTime: "Please enter the lost/found time.",
     needCategory:
       "Enter a valid category id (upload a photo for auto-fill, or type an English category code).",
     analyzingPhoto: "Analyzing photo…",

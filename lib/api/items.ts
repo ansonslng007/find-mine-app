@@ -54,7 +54,7 @@ export type CreateItemInput = {
   /** Must be sent together with `locationLongitude` when set. */
   locationLatitude?: number;
   locationLongitude?: number;
-  occurredAt?: string;
+  occurredAt: string;
   /** HKD reward for lost items; optional, defaults to 0. */
   rewardAmount?: number;
   image: CreateItemImagePart;
@@ -69,7 +69,7 @@ export type UpdateItemInput = {
   locationText?: string;
   locationLatitude?: number;
   locationLongitude?: number;
-  occurredAt?: string;
+  occurredAt: string;
   rewardAmount?: number;
   image?: CreateItemImagePart;
 };
