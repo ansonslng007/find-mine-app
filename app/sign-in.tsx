@@ -251,6 +251,7 @@ export default function SignInScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [biometricRowVisible, setBiometricRowVisible] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
+  const formScrollRef = useRef<ScrollView | null>(null);
 
   const refreshBiometricRow = useCallback(async () => {
     const pref = await getBiometricLoginEnabled();
@@ -268,6 +269,7 @@ export default function SignInScreen() {
   );
 
   const handlePasswordSignIn = async () => {
+    formScrollRef.current?.scrollTo({ y: 0, animated: true });
     setErrorMessage(null);
     if (!email.trim() || !password) {
       setErrorMessage(t("auth.errors.fillAll"));
@@ -530,6 +532,7 @@ export default function SignInScreen() {
         style={styles.keyboard}
       >
         <ScrollView
+          ref={formScrollRef}
           keyboardDismissMode={
             Platform.OS === "ios" ? "interactive" : "on-drag"
           }

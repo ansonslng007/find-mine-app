@@ -1,5 +1,5 @@
 import { useAppColors } from "@/hooks/use-app-colors";
-import React, { ComponentProps, useMemo } from "react";
+import React, { ComponentProps, RefObject, useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { IconSymbol } from "../ui/icon-symbol";
@@ -13,6 +13,7 @@ type PageLayoutWithHeaderProps = Readonly<{
   iconBackgroundColor?: string;
   useScrollView?: boolean;
   headerRight?: React.ReactNode;
+  scrollViewRef?: RefObject<ScrollView | null>;
 }>;
 
 export function PageLayoutWithHeader({
@@ -23,6 +24,7 @@ export function PageLayoutWithHeader({
   iconBackgroundColor,
   useScrollView = true,
   headerRight,
+  scrollViewRef,
 }: PageLayoutWithHeaderProps) {
   const c = useAppColors();
   const insets = useSafeAreaInsets();
@@ -76,6 +78,7 @@ export function PageLayoutWithHeader({
       <View style={pageStyles.content}>
         {useScrollView ? (
           <ScrollView
+            ref={scrollViewRef}
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

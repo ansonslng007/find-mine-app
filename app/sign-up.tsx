@@ -167,6 +167,7 @@ export default function SignUpScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const formScrollRef = useRef<ScrollView | null>(null);
 
   const styles = useMemo(
     () =>
@@ -279,6 +280,7 @@ export default function SignUpScreen() {
   );
 
   const handleCreateAccount = async () => {
+    formScrollRef.current?.scrollTo({ y: 0, animated: true });
     setErrorMessage(null);
     if (!email.trim() || !password || !confirmPassword) {
       setErrorMessage(t("auth.errors.fillAll"));
@@ -355,6 +357,7 @@ export default function SignUpScreen() {
         style={styles.keyboard}
       >
         <ScrollView
+          ref={formScrollRef}
           keyboardDismissMode={
             Platform.OS === "ios" ? "interactive" : "on-drag"
           }
