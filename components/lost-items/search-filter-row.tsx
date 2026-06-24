@@ -68,7 +68,7 @@ export function SearchFilterRow({
     () =>
       StyleSheet.create({
         wrap: {
-          marginBottom: 14,
+          marginBottom: 0,
         },
         searchRow: {
           flexDirection: "row",

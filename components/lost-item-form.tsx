@@ -17,7 +17,7 @@ import { useI18n } from "@/providers/i18n-provider";
 import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type ScrollView,
 } from "react-native";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 import { ThemedText } from "./themed-text";
@@ -149,6 +150,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
 
   const [objectHint, setObjectHint] = useState("");
   const [uploadSheetVisible, setUploadSheetVisible] = useState(false);
+  const formScrollRef = useRef<ScrollView | null>(null);
 
   const [backendFillSnapshot, setBackendFillSnapshot] = useState<{
     category: string;
@@ -438,6 +440,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
   const uploadSheetScope = kind === "found" ? "foundHome" : "lostHome";
 
   const handleSubmit = () => {
+    formScrollRef.current?.scrollTo({ y: 0, animated: true });
     setSubmitMessage("");
     setSubmitError("");
 
@@ -449,6 +452,10 @@ export function LostItemForm(props: LostItemFormProps = {}) {
       Alert.alert(t("form.cannotSubmitTitle"), t("form.needTitle"));
       return;
     }
+    if (!time.trim()) {
+      Alert.alert(t("form.cannotSubmitTitle"), t("form.needTime"));
+      return;
+    }
     const cat = category.trim();
     if (!cat || !SUBMIT_CATEGORY_IDS.has(cat)) {
       Alert.alert(t("form.cannotSubmitTitle"), t("form.needCategory"));
@@ -457,6 +464,11 @@ export function LostItemForm(props: LostItemFormProps = {}) {
 
     const occurredAt = parseOccurredAtIso(time);
     if (time.trim() && (!occurredAt || timeInputError)) {
+      setTimeInputError(validateDateInput(time));
+      return;
+    }
+    const occurredAtValue = occurredAt;
+    if (!occurredAtValue) {
       setTimeInputError(validateDateInput(time));
       return;
     }
@@ -473,7 +485,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
             locationLongitude: placeGeometry.location.lng,
           }
         : {}),
-      occurredAt,
+      occurredAt: occurredAtValue,
       ...(kind === "lost"
         ? { rewardAmount: parseRewardInput(rewardInput) }
         : {}),
@@ -506,11 +518,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
         },
         {
           onSuccess: () => {
-            setSubmitMessage(t("edit.success"));
-            router.replace({
-              pathname: "/item/[id]",
-              params: { id: props.itemId },
-            });
+            router.back();
           },
           onError: onMutationError,
         },
@@ -556,6 +564,15 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     setPlaceGeometry({ location: { lat: value.lat, lng: value.lng } });
   };
 
+  const handleLocationTextChange = (text: string) => {
+    setLocation(text);
+    if (!text.trim()) {
+      setPlaceGeometry(null);
+      return;
+    }
+    setPlaceGeometry(null);
+  };
+
   const titleLabel =
     kind === "lost" ? t("form.titleLost") : t("form.titleFound");
   const timeLabel = kind === "lost" ? t("form.timeLost") : t("form.timeFound");
@@ -575,6 +592,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
       screenTitle={screenTitle}
       screenSubtitle={screenSubtitle}
       icon="shippingbox.fill"
+      scrollViewRef={formScrollRef}
     >
       {isEdit ? (
         <Pressable
@@ -675,6 +693,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
           <Text style={[styles.labelText, { color: c.textPrimary }]}>
             {timeLabel}
           </Text>
+          <Text style={[styles.requiredStar, { color: c.brand }]}>*</Text>
         </View>
         <View
           style={[
@@ -722,6 +741,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
         <LocationPickField
           addressLabel={location}
           onLocationChange={handleLocationPickChange}
+          onAddressTextChange={handleLocationTextChange}
           onPressPickOnMap={() => setMapPickVisible(true)}
         />
       </View>

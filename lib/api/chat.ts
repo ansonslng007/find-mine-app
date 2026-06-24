@@ -20,7 +20,14 @@ export type ConversationListEntry = {
   /** null when the linked listing was deleted */
   item: ChatItemSummary | null;
   peer: ChatPeer;
-  lastMessage: { body: string; at: string | null } | null;
+  lastMessage:
+    | {
+        type: "text" | "voice";
+        body: string | null;
+        voiceDurationSec: number | null;
+        at: string | null;
+      }
+    | null;
   unreadCount: number;
 };
 
@@ -73,7 +80,13 @@ export async function getConversation(
 export type ChatMessage = {
   id: string;
   senderId: string;
-  body: string;
+  type: "text" | "voice";
+  body: string | null;
+  voice: {
+    audioUrl: string | null;
+    durationSec: number | null;
+    mimeType: string | null;
+  } | null;
   createdAt: string;
 };
 
@@ -118,4 +131,23 @@ export async function markConversationRead(
 
 export async function deleteConversation(conversationId: string): Promise<void> {
   await apiClient.delete(`/api/v1/conversations/${conversationId}`);
+}
+
+export type CreateVoiceUploadUrlResponse = {
+  uploadUrl: string;
+  audioUrl: string;
+  objectName: string;
+  expiresAt: string;
+  maxDurationSec: number;
+};
+
+export async function createVoiceUploadUrl(
+  conversationId: string,
+  input: { mimeType: string; durationSec: number; fileSize: number },
+): Promise<CreateVoiceUploadUrlResponse> {
+  const { data } = await apiClient.post<CreateVoiceUploadUrlResponse>(
+    `/api/v1/conversations/${conversationId}/voice-upload-url`,
+    input,
+  );
+  return data;
 }

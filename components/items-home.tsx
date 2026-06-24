@@ -12,6 +12,7 @@ import {
   SearchByImageSheet,
   type SheetStatusKind,
 } from "@/components/modal/search-by-image-sheet";
+import { NotificationBellButton } from "@/components/notifications/notification-bell-button";
 import { ThemedText } from "@/components/themed-text";
 import { PillButton } from "@/components/ui/pill-button";
 import { type LostItemCategoryId } from "@/constants/items";
@@ -40,7 +41,6 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NotificationBellButton } from "@/components/notifications/notification-bell-button";
 import { PageLayoutWithHeader } from "./layout/page-layout-with-header";
 
 type HomeScope = "lostHome" | "foundHome";
@@ -339,7 +339,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     ? searchGeo.radiusMeters
     : undefined;
 
-  const { data, isPending, isError, error, refetch, isRefetching } =
+  const { data, isLoading, isError, error, refetch, isRefetching } =
     useItemsList({
       kind,
       occurredAfter: occurredAfterIso,
@@ -457,10 +457,30 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     );
   }, [data?.items, category, searchNearLat, searchNearLng, searchRadiusMeters]);
 
+  const similarResults = useMemo(
+    () => searchByImageMutation.data?.results ?? [],
+    [searchByImageMutation.data],
+  );
+
+  /**
+   * Keep image-search results within the same item category as the best match,
+   * so visually similar noise from different categories will not be shown.
+   */
+  const imageSearchMatchedCategory = useMemo(
+    () => similarResults[0]?.item.category ?? null,
+    [similarResults],
+  );
+
   const similarItems = useMemo(
     () =>
-      searchByImageMutation.data?.results.map((result) => result.item) ?? [],
-    [searchByImageMutation.data],
+      similarResults
+        .filter((result) =>
+          imageSearchMatchedCategory == null
+            ? true
+            : result.item.category === imageSearchMatchedCategory,
+        )
+        .map((result) => result.item),
+    [similarResults, imageSearchMatchedCategory],
   );
 
   const hasImageSearch = searchByImageMutation.data != null;
@@ -530,7 +550,10 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     if (hasImageSearch) {
       return imageItemsFiltered;
     }
-    if (isPending || isError) {
+    if (isLoading) {
+      return [];
+    }
+    if (isError && !data?.items?.length) {
       return [];
     }
     return normalFiltered;
@@ -539,8 +562,9 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     hasImageSearch,
     textItemsFiltered,
     imageItemsFiltered,
-    isPending,
+    isLoading,
     isError,
+    data?.items?.length,
     normalFiltered,
   ]);
 
@@ -558,12 +582,12 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
     if (hasTextSearch || hasImageSearch) {
       return listData.length === 0;
     }
-    return isPending || isError || normalFiltered.length === 0;
+    return isLoading || isError || normalFiltered.length === 0;
   }, [
     hasTextSearch,
     hasImageSearch,
     listData.length,
-    isPending,
+    isLoading,
     isError,
     normalFiltered.length,
   ]);
@@ -725,7 +749,7 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
 
   const listShowsTextSearch = hasTextSearch;
   const listEmptyPending =
-    isPending || (listShowsTextSearch && textSearchLoading);
+    isLoading || (listShowsTextSearch && textSearchLoading);
 
   const listEmpty = (
     <HomeListEmpty
@@ -814,19 +838,20 @@ export function ItemsHome({ kind, scope }: ItemsHomeProps) {
       ) : null}
 
       <FlatList
+        style={{ marginTop: 10 }}
         data={listData}
         keyExtractor={(it) => it.id}
         renderItem={renderItem}
         contentContainerStyle={[
           pageStyles.listContent,
-          { paddingBottom: insets.bottom + 100 },
+          { paddingBottom: insets.bottom + 16 },
           listShouldGrow && pageStyles.listEmptyGrow,
         ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={listEmpty}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching && !isPending}
+            refreshing={isRefetching && !isLoading}
             onRefresh={() => refetch()}
             tintColor={c.brand}
           />
