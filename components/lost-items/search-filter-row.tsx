@@ -2,13 +2,14 @@ import { SearchFilterModal } from "@/components/lost-items/search-filter-modal";
 import type { SearchGeoState } from "@/components/lost-items/search-filter-modal";
 import type { MapPickLocationModalProps } from "@/components/modal/map-pick-location-modal";
 import type { LocationPickChange } from "@/components/location/location-pick-field";
+import { AppTextField } from "@/components/ui/app-text-field";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import type { LostItemCategoryId } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
 import { useI18n } from "@/providers/i18n-provider";
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 type Props = Readonly<{
   query: string;
@@ -77,33 +78,31 @@ export function SearchFilterRow({
         },
         searchField: {
           flex: 1,
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: c.chipBackground,
-          borderRadius: 999,
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          gap: 8,
         },
-        searchInput: {
-          flex: 1,
-          fontSize: 16,
-          color: c.textPrimary,
-          padding: 0,
-        },
-        cameraFab: {
+        actionBtn: {
           width: 48,
           height: 48,
-          borderRadius: 24,
+          borderRadius: 8,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: c.chipBackground,
+          backgroundColor: c.cardBackground,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: c.borderSubtle,
         },
-        cameraFabActive: {
+        actionBtnActive: {
           backgroundColor: c.brand,
           borderColor: c.brand,
+        },
+        activeBadge: {
+          position: "absolute",
+          right: 7,
+          top: 7,
+          width: 9,
+          height: 9,
+          borderRadius: 5,
+          backgroundColor: "#1f883d",
+          borderWidth: 1,
+          borderColor: c.cardBackground,
         },
       }),
     [c],
@@ -118,30 +117,36 @@ export function SearchFilterRow({
   } else if (hasActiveFilter) {
     filterIconColor = "#1f883d";
   } else if (filterModalVisible) {
-    filterBtnStyle = styles.cameraFabActive;
+    filterBtnStyle = styles.actionBtnActive;
     filterIconColor = c.onBrand;
   }
 
   return (
     <View style={styles.wrap}>
       <View style={styles.searchRow}>
-        <View style={styles.searchField}>
-          <IconSymbol name="magnifyingglass" size={20} color={c.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t(`${scope}.searchPlaceholder`)}
-            placeholderTextColor={c.placeholder}
-            value={query}
-            onChangeText={onQueryChange}
-            returnKeyType="search"
-          />
-        </View>
-        <Pressable style={styles.cameraFab} onPress={onPressSearchByImage}>
+        <AppTextField
+          containerStyle={styles.searchField}
+          leftIcon={
+            <IconSymbol name="magnifyingglass" size={20} color={c.textMuted} />
+          }
+          placeholder={t(`${scope}.searchPlaceholder`)}
+          value={query}
+          onChangeText={onQueryChange}
+          onClear={() => onQueryChange("")}
+          returnKeyType="search"
+        />
+        <Pressable
+          style={styles.actionBtn}
+          onPress={onPressSearchByImage}
+          accessibilityRole="button"
+        >
           <IconSymbol name="camera.fill" size={22} color={c.textPrimary} />
         </Pressable>
         <IconButton
           onPress={onOpenFilterModal}
-          style={[styles.cameraFab, filterBtnStyle]}
+          style={[styles.actionBtn, filterBtnStyle]}
+          borderRadius={8}
+          accessibilityRole="button"
         >
           <IconSymbol
             name={
@@ -152,6 +157,7 @@ export function SearchFilterRow({
             size={22}
             color={filterIconColor}
           />
+          {hasActiveFilter ? <View style={styles.activeBadge} /> : null}
         </IconButton>
       </View>
 

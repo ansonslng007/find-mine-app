@@ -4,9 +4,12 @@ import {
   hasDisplayableReward,
   ITEM_REWARD_TAG_BG,
   ITEM_REWARD_TAG_TEXT_COLOR,
+  formatOccurredAt,
+  inferItemCategoryId,
   truncate,
 } from "@/components/lost-items/format";
 import { ThemedText } from "@/components/themed-text";
+import { AppCard } from "@/components/ui/app-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -32,22 +35,29 @@ export function LostItemCard({ item }: Props) {
       StyleSheet.create({
         card: {
           flexDirection: "row",
-          backgroundColor: c.cardBackground,
-          borderRadius: 16,
           padding: 12,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.borderSubtle,
-          shadowColor: c.shadow,
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.06,
-          shadowRadius: 4,
-          elevation: 2,
+        },
+        imageWrap: {
+          position: "relative",
         },
         thumb: {
-          width: 88,
-          height: 88,
-          borderRadius: 12,
+          width: 104,
+          height: 104,
+          borderRadius: 8,
           backgroundColor: c.imagePlaceholder,
+        },
+        kindPill: {
+          bottom: 6,
+          left: 6,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          position: "absolute",
+          borderRadius: 6,
+        },
+        kindPillText: {
+          color: "#FFFFFF",
+          fontSize: 11,
+          fontWeight: "800",
         },
         cardBody: {
           flex: 1,
@@ -60,10 +70,24 @@ export function LostItemCard({ item }: Props) {
           gap: 8,
           marginBottom: 4,
         },
+        tagRow: {
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 6,
+        },
         badge: {
           paddingHorizontal: 8,
           paddingVertical: 3,
-          borderRadius: 999,
+          borderRadius: 6,
+        },
+        badgeCategory: {
+          backgroundColor: c.chipBackground,
+        },
+        badgeCategoryText: {
+          color: c.textPrimary,
+          fontSize: 11,
+          fontWeight: "700",
         },
         badgePlatform: {
           backgroundColor: ITEM_PLATFORM_TAG_BG,
@@ -84,26 +108,22 @@ export function LostItemCard({ item }: Props) {
         metaRow: {
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
+          flexWrap: "wrap",
+          gap: 10,
+        },
+        metaChip: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+          maxWidth: "100%",
         },
         locRow: {
           flex: 1,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 4,
           minWidth: 0,
         },
         locText: {
-          flex: 1,
           fontSize: 13,
           lineHeight: 18,
-        },
-        timeRow: {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 4,
-          flexShrink: 0,
         },
       }),
     [c],
@@ -112,6 +132,8 @@ export function LostItemCard({ item }: Props) {
   const desc = item.description ?? "";
   const loc = item.locationText ?? t("common.unknownLocation");
   const platformTag = formatItemPlatformTag(item, t);
+  const categoryLabel = t(`categories.${inferItemCategoryId(item)}`);
+  const occurredAt = formatOccurredAt(item.occurredAt, locale);
   const showReward = hasDisplayableReward(item);
   const showTime =
     Date.now() - new Date(item.createdAt).getTime() < ONE_HOUR_MS;
@@ -122,18 +144,38 @@ export function LostItemCard({ item }: Props) {
         router.push({ pathname: ROUTE_PATH.ITEM, params: { id: item.id } })
       }
     >
-      <View style={styles.card}>
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.thumb}
-          contentFit="cover"
-          transition={200}
-        />
+      <AppCard style={styles.card}>
+        <View style={styles.imageWrap}>
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.thumb}
+            contentFit="cover"
+            transition={200}
+          />
+          <View
+            style={[
+              styles.kindPill,
+              {
+                backgroundColor:
+                  item.kind === "lost" ? c.badgeLost : c.badgeFound,
+              },
+            ]}
+          >
+            <Text style={styles.kindPillText}>
+              {item.kind === "lost" ? t("card.badgeLost") : t("card.badgeFound")}
+            </Text>
+          </View>
+        </View>
         <View style={styles.cardBody}>
           <View style={styles.titleRow}>
             <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
               {item.title}
             </ThemedText>
+          </View>
+          <View style={styles.tagRow}>
+            <View style={[styles.badge, styles.badgeCategory]}>
+              <Text style={styles.badgeCategoryText}>{categoryLabel}</Text>
+            </View>
             {showReward ? (
               <View style={[styles.badge, styles.badgeReward]}>
                 <Text style={styles.badgeRewardText}>{t("detail.reward")}</Text>
@@ -153,7 +195,7 @@ export function LostItemCard({ item }: Props) {
             {desc ? truncate(desc, 72) : t("common.noDescription")}
           </ThemedText>
           <View style={styles.metaRow}>
-            <View style={styles.locRow}>
+            <View style={[styles.metaChip, styles.locRow]}>
               <IconSymbol
                 name="mappin.circle.fill"
                 size={14}
@@ -167,8 +209,14 @@ export function LostItemCard({ item }: Props) {
                 {loc}
               </ThemedText>
             </View>
+            {occurredAt ? (
+              <View style={styles.metaChip}>
+                <IconSymbol name="calendar" size={14} color={c.textMuted} />
+                <ThemedText type="caption">{occurredAt}</ThemedText>
+              </View>
+            ) : null}
             {showTime ? (
-              <View style={styles.timeRow}>
+              <View style={styles.metaChip}>
                 <IconSymbol name="clock" size={14} color={c.textMuted} />
                 <ThemedText type="caption">
                   {formatRelativeTime(item.createdAt, t, locale)}
@@ -177,7 +225,7 @@ export function LostItemCard({ item }: Props) {
             ) : null}
           </View>
         </View>
-      </View>
+      </AppCard>
     </Pressable>
   );
 }

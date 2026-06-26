@@ -5,11 +5,9 @@ import {
   hasDisplayableReward,
   inferItemCategoryId,
 } from "@/components/lost-items/format";
-import {
-  BottomActionSheet,
-  type BottomActionSheetItem,
-} from "@/components/modal/bottom-action-sheet";
 import { ThemedText } from "@/components/themed-text";
+import { AppButton } from "@/components/ui/app-button";
+import { AppCard } from "@/components/ui/app-card";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ROUTE_PATH } from "@/constants/routePath";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -53,7 +51,6 @@ export function ItemDetailScreen() {
   const { data, isLoading, isError, error, refetch } = useItem(id);
   const deleteItemMutation = useDeleteItem();
   const [contactBusy, setContactBusy] = useState(false);
-  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const styles = useMemo(
     () =>
@@ -132,11 +129,7 @@ export function ItemDetailScreen() {
           marginBottom: 24,
         },
         locationCard: {
-          backgroundColor: c.cardBackground,
-          borderRadius: 16,
           padding: 16,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: c.borderSubtle,
         },
         locationHeader: {
           flexDirection: "row",
@@ -173,8 +166,16 @@ export function ItemDetailScreen() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: c.borderSubtle,
           backgroundColor: c.cardBackground,
+          gap: 10,
           paddingHorizontal: 20,
           paddingTop: 14,
+        },
+        contactFooterRow: {
+          flexDirection: "row",
+          gap: 10,
+        },
+        contactFooterButton: {
+          flex: 1,
         },
         contactFooterHint: {
           fontSize: 14,
@@ -387,20 +388,6 @@ export function ItemDetailScreen() {
     }
   };
 
-  const moreMenuActions: BottomActionSheetItem[] = [
-    {
-      key: "edit",
-      label: t("detail.editPost"),
-      onPress: handleEditPost,
-    },
-    {
-      key: "delete",
-      label: t("detail.deletePost"),
-      destructive: true,
-      onPress: handleDeletePost,
-    },
-  ];
-
   const handleContactPoster = async () => {
     if (!poster) {
       return;
@@ -470,15 +457,6 @@ export function ItemDetailScreen() {
                   color="#FFFFFF"
                 />
               </Pressable>
-              {isOwnPoster ? (
-                <Pressable
-                  onPress={() => setMoreMenuVisible(true)}
-                  style={styles.heroIconBtn}
-                  hitSlop={8}
-                >
-                  <IconSymbol name="ellipsis" size={22} color="#FFFFFF" />
-                </Pressable>
-              ) : null}
             </View>
           </View>
         </View>
@@ -547,7 +525,7 @@ export function ItemDetailScreen() {
             {description || t("common.noDescription")}
           </ThemedText>
 
-          <View style={styles.locationCard}>
+          <AppCard style={styles.locationCard}>
             <View style={styles.locationHeader}>
               <IconSymbol name="mappin.circle.fill" size={22} color={c.brand} />
               <Text style={styles.locationTitle}>
@@ -557,7 +535,7 @@ export function ItemDetailScreen() {
             <Text style={styles.locationBody}>
               {location || t("common.unknownLocation")}
             </Text>
-          </View>
+          </AppCard>
         </View>
       </ScrollView>
 
@@ -568,34 +546,39 @@ export function ItemDetailScreen() {
         ]}
       >
         {isFbGroupImport ? (
-          <Pressable
-            style={styles.contactBtn}
+          <AppButton
+            label={t("detail.openSourcePost")}
             onPress={handleOpenSourcePost}
             disabled={contactBusy}
-          >
-            {contactBusy ? (
-              <ActivityIndicator color={c.onBrand} />
-            ) : (
-              <Text style={styles.contactBtnLabel}>
-                {t("detail.openSourcePost")}
-              </Text>
-            )}
-          </Pressable>
+            loading={contactBusy}
+            fullWidth
+          />
         ) : null}
         {canMessagePoster ? (
-          <Pressable
-            style={styles.contactBtn}
+          <AppButton
+            label={t("detail.contactPoster")}
             onPress={handleContactPoster}
             disabled={contactBusy}
-          >
-            {contactBusy ? (
-              <ActivityIndicator color={c.onBrand} />
-            ) : (
-              <Text style={styles.contactBtnLabel}>
-                {t("detail.contactPoster")}
-              </Text>
-            )}
-          </Pressable>
+            loading={contactBusy}
+            fullWidth
+          />
+        ) : null}
+        {isOwnPoster ? (
+          <View style={styles.contactFooterRow}>
+            <AppButton
+              label={t("detail.editPost")}
+              variant="secondary"
+              onPress={handleEditPost}
+              style={styles.contactFooterButton}
+            />
+            <AppButton
+              label={t("detail.deletePost")}
+              variant="danger"
+              onPress={handleDeletePost}
+              loading={deleteItemMutation.isPending}
+              style={styles.contactFooterButton}
+            />
+          </View>
         ) : null}
         {!canMessagePoster &&
         !isOwnPoster &&
@@ -607,11 +590,6 @@ export function ItemDetailScreen() {
         ) : null}
       </View>
 
-      <BottomActionSheet
-        visible={moreMenuVisible}
-        onClose={() => setMoreMenuVisible(false)}
-        actions={moreMenuActions}
-      />
     </View>
   );
 }
