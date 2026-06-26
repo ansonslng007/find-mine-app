@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "@/lib/api/base-url";
+
 /**
  * Socket.IO expects origin only (protocol + host), no path prefix.
  */
@@ -5,8 +7,7 @@ export function getSocketBaseUrl(): string {
   const fromEnv =
     (typeof process !== "undefined" &&
       process.env.EXPO_PUBLIC_WS_BASE_URL?.trim()) ||
-    (typeof process !== "undefined" &&
-      process.env.EXPO_PUBLIC_API_BASE_URL?.trim()) ||
+    getApiBaseUrl() ||
     "";
   if (!fromEnv) {
     return "";
