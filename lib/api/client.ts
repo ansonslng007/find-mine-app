@@ -1,8 +1,9 @@
 import axios, { type AxiosError } from "axios";
 
+import { getApiBaseUrl } from "@/lib/api/base-url";
 import { getAuthToken } from "@/lib/auth/token-storage";
 
-const baseURL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+const baseURL = getApiBaseUrl();
 
 export class ApiError extends Error {
   status: number;
@@ -45,10 +46,6 @@ function apiErrorFromPayload(
   });
 }
 
-export function getApiBaseUrl(): string {
-  return (process.env.EXPO_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
-}
-
 /** React Native multipart via axios often fails; fetch handles FormData correctly. */
 export async function apiMultipartRequest<TResponse>(
   path: string,
@@ -57,7 +54,7 @@ export async function apiMultipartRequest<TResponse>(
 ): Promise<TResponse> {
   const base = getApiBaseUrl();
   if (!base) {
-    throw new ApiError("EXPO_PUBLIC_API_BASE_URL is not set", {
+    throw new ApiError("API base URL is not set", {
       status: 0,
       code: "CONFIG",
       details: null,

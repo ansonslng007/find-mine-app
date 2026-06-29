@@ -16,6 +16,7 @@
       }
     },
     "android": {
+      "package": "com.roylung007.findmine",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
