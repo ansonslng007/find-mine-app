@@ -53,6 +53,7 @@ const MAPPING = {
   "pause.fill": "pause",
   "trash.fill": "delete-outline",
   "square.and.arrow.up": "ios-share",
+  "square.and.pencil": "edit",
   ellipsis: "more-vert",
   bell: "notifications-none",
   "bell.fill": "notifications",

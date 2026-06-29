@@ -37,27 +37,11 @@ export function LostItemCard({ item }: Props) {
           flexDirection: "row",
           padding: 12,
         },
-        imageWrap: {
-          position: "relative",
-        },
         thumb: {
           width: 104,
           height: 104,
           borderRadius: 8,
           backgroundColor: c.imagePlaceholder,
-        },
-        kindPill: {
-          bottom: 6,
-          left: 6,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-          position: "absolute",
-          borderRadius: 6,
-        },
-        kindPillText: {
-          color: "#FFFFFF",
-          fontSize: 11,
-          fontWeight: "800",
         },
         cardBody: {
           flex: 1,
@@ -145,27 +129,12 @@ export function LostItemCard({ item }: Props) {
       }
     >
       <AppCard style={styles.card}>
-        <View style={styles.imageWrap}>
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.thumb}
-            contentFit="cover"
-            transition={200}
-          />
-          <View
-            style={[
-              styles.kindPill,
-              {
-                backgroundColor:
-                  item.kind === "lost" ? c.badgeLost : c.badgeFound,
-              },
-            ]}
-          >
-            <Text style={styles.kindPillText}>
-              {item.kind === "lost" ? t("card.badgeLost") : t("card.badgeFound")}
-            </Text>
-          </View>
-        </View>
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.thumb}
+          contentFit="cover"
+          transition={200}
+        />
         <View style={styles.cardBody}>
           <View style={styles.titleRow}>
             <ThemedText type="cardTitle" style={{ flex: 1 }} numberOfLines={1}>
