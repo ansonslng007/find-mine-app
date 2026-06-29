@@ -2,7 +2,9 @@ import {
   SearchByImageSheet,
   type SheetStatusKind,
 } from "@/components/modal/search-by-image-sheet";
-import { PillButton } from "@/components/ui/pill-button";
+import { AppButton } from "@/components/ui/app-button";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useAppColors } from "@/hooks/use-app-colors";
 import { ApiError } from "@/lib/api/client";
 import { analyzeItemImage } from "@/lib/api/items";
 import { useI18n } from "@/providers/i18n-provider";
@@ -65,6 +67,7 @@ export function FabUploadSheetProvider({
   children,
 }: FabUploadSheetProviderProps) {
   const { t, locale } = useI18n();
+  const c = useAppColors();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [busyPhase, setBusyPhase] = useState<BusyPhase>("idle");
@@ -176,8 +179,12 @@ export function FabUploadSheetProvider({
 
   const fabFooter = (
     <View style={fabFooterStyles.wrap}>
-      <PillButton
+      <AppButton
         label={t("fabUpload.goToForm")}
+        fullWidth
+        leftIcon={
+          <IconSymbol name="square.and.pencil" size={18} color={c.onBrand} />
+        }
         onPress={handleGoToForm}
         disabled={isBusy}
       />

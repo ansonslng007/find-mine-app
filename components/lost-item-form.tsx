@@ -3,6 +3,7 @@ import { CategoryPickerModal } from "@/components/modal/category-picker-modal";
 import { DatePickerModal } from "@/components/modal/date-picker-modal";
 import { MapPickLocationModal } from "@/components/modal/map-pick-location-modal";
 import { SearchByImageSheet } from "@/components/modal/search-by-image-sheet";
+import { AppButton } from "@/components/ui/app-button";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { LOST_ITEM_CATEGORY_IDS } from "@/constants/items";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -896,28 +897,21 @@ export function LostItemForm(props: LostItemFormProps = {}) {
             </View>
           </View>
         ) : null}
-        <View style={styles.fileUploadWrapper}>
-          <TouchableOpacity
-            style={[
-              styles.pickImageButton,
-              styles.pickImageButtonFullWidth,
-              { backgroundColor: c.brand },
-              loading && styles.pickImageButtonDisabled,
-            ]}
+        <View>
+          <AppButton
+            label={loading ? t("form.analyzingPhoto") : t("form.uploadImageButton")}
             onPress={() => setUploadSheetVisible(true)}
             disabled={loading}
-          >
-            <Text style={[styles.pickImageButtonText, { color: c.onBrand }]}>
-              {loading ? t("form.analyzingPhoto") : t("form.uploadImageButton")}
-            </Text>
-          </TouchableOpacity>
-          {loading ? (
-            <ActivityIndicator
-              size="small"
-              color={c.brand}
-              style={styles.pickImageSpinner}
+            loading={loading}
+            fullWidth
+            leftIcon={
+              <IconSymbol
+                name="photo.on.rectangle"
+                size={18}
+                color={c.onBrand}
+              />
+            }
             />
-          ) : null}
         </View>
       </View>
 
@@ -1107,32 +1101,6 @@ function createLostItemFormStyles() {
     },
     uploadSection: {
       marginBottom: 16,
-    },
-    fileUploadWrapper: {
-      flexDirection: "row",
-      alignItems: "center",
-      flexWrap: "nowrap",
-      gap: 10,
-    },
-    pickImageButton: {
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      borderRadius: 999,
-      alignSelf: "flex-start",
-    },
-    pickImageButtonFullWidth: {
-      flex: 1,
-      alignSelf: "stretch",
-    },
-    pickImageButtonDisabled: {
-      opacity: 0.55,
-    },
-    pickImageButtonText: {
-      fontSize: 15,
-      fontWeight: "600",
-    },
-    pickImageSpinner: {
-      marginLeft: 4,
     },
     photoThumbRow: {
       flexDirection: "row",
