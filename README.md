@@ -1,50 +1,86 @@
-# Welcome to your Expo app 👋
+# Find Mine App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo React Native app for Find Mine.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+The app uses `.env` for public Expo config:
 
-## Learn more
+```env
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_key
+EXPO_PUBLIC_CLOUD_API_BASE_URL=https://your-cloud-backend-url
+EXPO_PUBLIC_LOCAL_API_PORT=3000
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Run
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Default start uses the cloud backend:
 
-## Join the community
+```bash
+npm start
+```
 
-Join our community of developers creating universal apps.
+`npm start` is for normal testing with the deployed cloud backend. It starts Expo in tunnel mode and clears the cache.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Run with local backend:
+
+```bash
+npm run start:dev
+```
+
+`npm run start:dev` is for development against a local backend. Make sure the backend is already running before using it.
+If you use the local backend, run `npm run dev` in the `find-mine-backend` project first.
+
+Run native targets:
+
+```bash
+npm run android
+npm run ios
+```
+
+Web is not a supported app target.
+
+## Build
+
+Build Android APK locally with the EAS preview profile:
+
+```bash
+npm run build:apk
+```
+
+Cloud build alternative:
+
+```bash
+npx eas build -p android --profile preview
+```
+
+Production build:
+
+```bash
+npx eas build -p android --profile production
+```
+
+## Scripts
+
+| Script                  | Purpose                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `npm start`             | Start Expo with cloud backend, tunnel, and clear cache.                              |
+| `npm run start:dev`     | Start Expo for local backend development.                                            |
+| `npm run start:cloud`   | Same as `npm start`.                                                                 |
+| `npm run android`       | Run Android native development build.                                                |
+| `npm run ios`           | Run iOS native development build.                                                    |
+| `npm run web`           | Start Expo web for quick development checks only. Web is not a supported app target. |
+| `npm run build:apk`     | Build local Android APK.                                                             |
+| `npm run lint`          | Run lint checks.                                                                     |
+| `npm test`              | Run tests.                                                                           |
+| `npm run test:coverage` | Run tests with coverage.                                                             |
+
+## Notes
+
+- API URL selection is in `lib/api/base-url.ts`.
+- Build profiles are in `eas.json`.
+- App config is in `app.json` and `app.config.ts`.

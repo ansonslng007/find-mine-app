@@ -47,10 +47,22 @@ function getLocalApiBaseUrl(): string {
   return `http://${host}:${port}`;
 }
 
+function getCloudApiBaseUrl(): string {
+  return trimTrailingSlash(
+    process.env.EXPO_PUBLIC_CLOUD_API_BASE_URL?.trim() ||
+      DEFAULT_CLOUD_API_BASE_URL,
+  );
+}
+
 export function getApiBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? "";
   if (explicit) {
     return trimTrailingSlash(explicit);
+  }
+
+  const target = process.env.EXPO_PUBLIC_API_TARGET?.trim().toLowerCase();
+  if (target === "cloud") {
+    return getCloudApiBaseUrl();
   }
 
   if (isDevRuntime()) {
@@ -60,8 +72,5 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  return trimTrailingSlash(
-    process.env.EXPO_PUBLIC_CLOUD_API_BASE_URL?.trim() ||
-      DEFAULT_CLOUD_API_BASE_URL,
-  );
+  return getCloudApiBaseUrl();
 }
