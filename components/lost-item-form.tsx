@@ -441,7 +441,6 @@ export function LostItemForm(props: LostItemFormProps = {}) {
   const uploadSheetScope = kind === "found" ? "foundHome" : "lostHome";
 
   const handleSubmit = () => {
-    formScrollRef.current?.scrollTo({ y: 0, animated: true });
     setSubmitMessage("");
     setSubmitError("");
 
@@ -537,6 +536,7 @@ export function LostItemForm(props: LostItemFormProps = {}) {
     } as const;
     createItemMutation.mutate(formData, {
       onSuccess: (data) => {
+        formScrollRef.current?.scrollTo({ y: 0, animated: true });
         setSubmitMessage(
           t("form.submitSuccess", {
             kind: kind === "lost" ? t("form.kindLost") : t("form.kindFound"),
