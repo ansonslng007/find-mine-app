@@ -3,9 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "set EXPO_PUBLIC_API_TARGET=cloud&& expo start --tunnel -c",
-    "start:dev": "set EXPO_PUBLIC_API_TARGET=local&& expo start -c",
-    "start:cloud": "set EXPO_PUBLIC_API_TARGET=cloud&& expo start --tunnel -c",
+    "start": "expo start -c",
+    "start:tunnel": "expo start --tunnel -c",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

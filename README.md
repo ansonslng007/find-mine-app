@@ -13,27 +13,23 @@ The app uses `.env` for public Expo config:
 ```env
 EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_key
 EXPO_PUBLIC_CLOUD_API_BASE_URL=https://your-cloud-backend-url
-EXPO_PUBLIC_LOCAL_API_PORT=3000
 ```
 
 ## Run
 
-Default start uses the cloud backend:
+Start with the cloud backend:
 
 ```bash
 npm start
 ```
 
-`npm start` is for normal testing with the deployed cloud backend. It starts Expo in tunnel mode and clears the cache.
+`npm start` starts Expo, clears the cache, and uses the deployed cloud backend.
 
-Run with local backend:
+Use tunnel mode only when LAN mode is not enough:
 
 ```bash
-npm run start:dev
+npm run start:tunnel
 ```
-
-`npm run start:dev` is for development against a local backend. Make sure the backend is already running before using it.
-If you use the local backend, run `npm run dev` in the `find-mine-backend` project first.
 
 Run native targets:
 
@@ -68,9 +64,8 @@ npx eas build -p android --profile production
 
 | Script                  | Purpose                                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------ |
-| `npm start`             | Start Expo with cloud backend, tunnel, and clear cache.                              |
-| `npm run start:dev`     | Start Expo for local backend development.                                            |
-| `npm run start:cloud`   | Same as `npm start`.                                                                 |
+| `npm start`             | Start Expo with cloud backend and clear cache.                                       |
+| `npm run start:tunnel`  | Start Expo through tunnel mode when LAN mode is not enough.                          |
 | `npm run android`       | Run Android native development build.                                                |
 | `npm run ios`           | Run iOS native development build.                                                    |
 | `npm run web`           | Start Expo web for quick development checks only. Web is not a supported app target. |
