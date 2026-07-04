@@ -208,7 +208,6 @@ export const en = {
     emailPlaceholder: "Email address",
     passwordPlaceholder: "Password",
     invalidError: "Invalid login credentials",
-    forgotPassword: "Forgot Password?",
     signIn: "Sign In",
     continueWith: "or continue with",
     noAccount: "Don't have an account?",

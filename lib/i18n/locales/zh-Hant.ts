@@ -198,7 +198,6 @@ export const zhHant = {
     emailPlaceholder: "電子郵件地址",
     passwordPlaceholder: "密碼",
     invalidError: "登入資料無效",
-    forgotPassword: "忘記密碼？",
     signIn: "登入",
     continueWith: "或使用以下方式繼續",
     noAccount: "還沒有帳戶？",

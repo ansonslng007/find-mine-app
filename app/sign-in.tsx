@@ -442,16 +442,6 @@ export default function SignInScreen() {
           fontSize: 14,
           textAlign: "center",
         },
-        forgotButton: {
-          alignSelf: "flex-end",
-          marginTop: 12,
-          paddingVertical: 4,
-        },
-        linkText: {
-          color: c.brand,
-          fontSize: 15,
-          fontWeight: "600",
-        },
         signInButton: {
           height: 57,
           borderRadius: 17,
@@ -592,16 +582,6 @@ export default function SignInScreen() {
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             )}
-
-            <Pressable
-              onPress={() => undefined}
-              style={({ pressed }) => [
-                styles.forgotButton,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <Text style={styles.linkText}>{t("signIn.forgotPassword")}</Text>
-            </Pressable>
 
             <Pressable
               onPress={() => void handlePasswordSignIn()}

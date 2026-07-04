@@ -3,6 +3,7 @@ import { useAppColors } from "@/hooks/use-app-colors";
 import { nominatimReverse } from "@/lib/nominatim";
 import { buildReadableAddressFromNominatim } from "@/lib/nominatim-readable-address";
 import { extractPlaceGeometry } from "@/lib/places-geometry";
+import { getCurrentOrLastKnownPositionAsync } from "@/lib/location/current-position";
 import { useI18n } from "@/providers/i18n-provider";
 import * as Location from "expo-location";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -72,9 +73,7 @@ export function LocationPickField({
         return;
       }
 
-      const locationResult = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const locationResult = await getCurrentOrLastKnownPositionAsync();
 
       const { latitude, longitude } = locationResult.coords;
 

@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import type { AppLocale } from "@/lib/i18n/types";
+import { getCurrentOrLastKnownPositionAsync } from "@/lib/location/current-position";
 import { nominatimReverse } from "@/lib/nominatim";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAppColors } from "@/hooks/use-app-colors";
@@ -323,9 +324,7 @@ export function MapPickLocationModal({
         Alert.alert(permissionDeniedTitle, permissionDeniedBody);
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const pos = await getCurrentOrLastKnownPositionAsync();
       const { latitude, longitude } = pos.coords;
       const r: Region = {
         latitude,

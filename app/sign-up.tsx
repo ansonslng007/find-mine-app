@@ -22,7 +22,7 @@ import { ROUTE_PATH } from "@/constants/routePath";
 import { patchMe, signUp as signUpRequest } from "@/lib/api/auth";
 import { canUseBiometricLogin } from "@/lib/auth/biometric";
 import { saveBiometricCredentials } from "@/lib/auth/biometric-credentials";
-import { getBiometricLoginEnabled, setBiometricLoginEnabled } from "@/lib/auth/biometric-prefs";
+import { setBiometricLoginEnabled } from "@/lib/auth/biometric-prefs";
 import { mapAuthErrorToMessage } from "@/lib/auth/map-auth-error";
 import { saveAuthUser } from "@/lib/auth/session";
 import { saveAuthToken } from "@/lib/auth/token-storage";
@@ -303,9 +303,8 @@ export default function SignUpScreen() {
       });
       await saveAuthToken(token);
       await saveAuthUser(user);
-      const alreadyBioPref = await getBiometricLoginEnabled();
       const bioOk = await canUseBiometricLogin();
-      if (bioOk && !alreadyBioPref) {
+      if (bioOk) {
         Alert.alert(
           t("auth.biometricEnableTitle"),
           t("auth.biometricEnableBody"),
@@ -314,7 +313,10 @@ export default function SignUpScreen() {
               text: t("common.cancel"),
               style: "cancel",
               onPress: () => {
-                router.replace(ROUTE_PATH.HOME);
+                void (async () => {
+                  await setBiometricLoginEnabled(false);
+                  router.replace(ROUTE_PATH.HOME);
+                })();
               },
             },
             {

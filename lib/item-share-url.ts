@@ -2,6 +2,10 @@ import * as Linking from "expo-linking";
 
 const APP_SCHEME = "findmine";
 
+function buildAppSchemeUrl(path: string): string {
+  return `${APP_SCHEME}://${path.replace(/^\//, "")}`;
+}
+
 function joinWebBase(base: string, path: string): string {
   const normalized = base.replace(/\/$/, "");
   const suffix = path.startsWith("/") ? path : `/${path}`;
@@ -25,11 +29,11 @@ export function buildItemShareUrl(itemId: string): string {
   const generated = Linking.createURL(path, { scheme: APP_SCHEME });
 
   if (generated.startsWith("http://") || generated.startsWith("https://")) {
-    return generated;
+    return buildAppSchemeUrl(path);
   }
 
   if (!generated.includes("://")) {
-    return `${APP_SCHEME}://${path.replace(/^\//, "")}`;
+    return buildAppSchemeUrl(path);
   }
 
   return generated;
