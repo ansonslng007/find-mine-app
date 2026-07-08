@@ -21,19 +21,26 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ColorSchemePreferenceProvider>
-        <AppQueryProvider>
-          <ChatSocketProvider>
-            <I18nProvider>
-              <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-              >
-                <RootAuthRedirect />
-                <PushNotificationsSetup />
-                <Stack>
+        <RootLayoutContent />
+      </ColorSchemePreferenceProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function RootLayoutContent() {
+  const colorScheme = useColorScheme();
+
+  return (
+    <AppQueryProvider>
+      <ChatSocketProvider>
+        <I18nProvider>
+          <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+            <RootAuthRedirect />
+            <PushNotificationsSetup />
+            <Stack>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="item/[id]"
@@ -105,12 +112,10 @@ export default function RootLayout() {
                 options={{ presentation: "modal", title: "Modal" }}
               />
             </Stack>
-                <StatusBar style="auto" />
-              </ThemeProvider>
-            </I18nProvider>
-          </ChatSocketProvider>
-        </AppQueryProvider>
-      </ColorSchemePreferenceProvider>
-    </GestureHandlerRootView>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </I18nProvider>
+      </ChatSocketProvider>
+    </AppQueryProvider>
   );
 }

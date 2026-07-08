@@ -26,63 +26,69 @@ export default function TabLayout() {
   return (
     <FabUploadSheetProvider>
       <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: theme.tint,
-        tabBarInactiveTintColor: theme.tabIconDefault,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarStyle: {
-          paddingTop: 4,
-          height: 72,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tabs.lost"),
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="magnifyingglass" color={color} />
-          ),
+        screenOptions={{
+          tabBarActiveTintColor: theme.tabIconSelected,
+          tabBarInactiveTintColor: theme.tabIconDefault,
+          headerShown: false,
+          tabBarButton: HapticTab,
+          tabBarStyle: {
+            backgroundColor: theme.cardBackground,
+            borderTopColor: theme.borderSubtle,
+            paddingTop: 4,
+            height: 72,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="found"
-        options={{
-          title: t("tabs.found"),
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="map" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="post"
-        options={{
-          title: t("tabs.post"),
-          tabBarIcon: () => null,
-          tabBarButton: (props) => <CenterTabButton {...props} />,
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: t("tabs.chat"),
-          tabBarBadge: chatBadge,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="bubble.left.and.bubble.right" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("tabs.profile"),
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="person.fill" color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t("tabs.lost"),
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={26} name="magnifyingglass" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="found"
+          options={{
+            title: t("tabs.found"),
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={26} name="map" color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="post"
+          options={{
+            title: t("tabs.post"),
+            tabBarIcon: () => null,
+            tabBarButton: (props) => <CenterTabButton {...props} />,
+          }}
+        />
+        <Tabs.Screen
+          name="chat"
+          options={{
+            title: t("tabs.chat"),
+            tabBarBadge: chatBadge,
+            tabBarIcon: ({ color }) => (
+              <IconSymbol
+                size={26}
+                name="bubble.left.and.bubble.right"
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: t("tabs.profile"),
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={26} name="person.fill" color={color} />
+            ),
+          }}
+        />
+      </Tabs>
     </FabUploadSheetProvider>
   );
 }
